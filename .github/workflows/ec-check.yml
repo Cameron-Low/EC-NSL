@@ -1,0 +1,23 @@
+name: EC-NSL Verify Files
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  OPAMROOT: /home/ecbox/.opam
+  OPAMJOBS: 2
+
+jobs:
+  ec:
+    name: Easycrypt Proof Checking
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/cameron-low/ecbox:2024.09
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v4
+    - name: Compile Project
+      run: opam exec -- make check

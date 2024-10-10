@@ -1,0 +1,383 @@
+require import AllCore FMap FSet.
+
+type id, msg, istate, rstate, key, pskey.
+
+op dkey: key distr.
+op dpskey: pskey distr.
+
+(* Represents the role of an instance in the protocol *)
+type role = [
+  Initiator
+| Responder
+].
+
+type trace = (id * msg) * msg * msg.
+
+(* Represents an instance state in the protocol *)
+type instance_state = [
+  IPending of istate & (id * msg)
+| RPending of rstate & (id * msg) & msg
+| Accepted of trace & key
+| Observed of trace & key
+| Aborted
+].
+
+(* Return the trace from an accepted state *)
+op get_trace s : trace option =
+with s = Accepted t _   => Some t
+with s = Observed t _   => Some t
+with s = IPending _ _   => None
+with s = RPending _ _ _ => None
+with s = Aborted        => None.
+
+(* Decide if an instance has been revelaed *)
+op is_observed s : bool =
+with s = Observed _ _   => true
+with s = Accepted _ _   => false
+with s = IPending _ _   => false
+with s = RPending _ _ _ => false
+with s = Aborted        => false.
+
+(* Get all trace-sharing instances *)
+op get_ts_instances t (fmap : ('a, 'b * _) fmap) =
+  fdom (filter (fun _ x=> (get_trace \o snd) x = Some t) fmap).
+
+(* Get all partners of the given instance *)
+op get_partners ai t r (fmap: (id * int, role * instance_state) fmap) =
+fdom (
+  filter
+  (fun bj (val: role * instance_state) =>
+        bj <> ai            (* We cannot be our own partner *)
+    /\ get_trace val.`2 = t (* Partners share the same trace *)
+    /\ val.`1 <> r          (* Partners must have opposite roles *)
+    /\ t <> None            (* We must be accepted *)
+  )
+  fmap
+).
+
+op get_observed_partners ai  (fmap : (id * int, role * instance_state) fmap) =
+  let (r, s) = oget fmap.[ai] in
+  filter
+    (fun bj => oapp (is_observed \o snd) false fmap.[bj])
+    (get_partners ai (get_trace s) r fmap).
+
+module type AKE_Scheme = {
+  proc msg1(a: id, b: id, psk: pskey) : (id * msg) * istate
+  proc msg2(b: id, m1: id * msg, psk: pskey) : (msg * rstate) option
+  proc msg3(a: id, s: istate, m2: msg) : (msg * key) option
+  proc fin(b: id, s: rstate, m3: msg) : key option
+}.
+
+module type GWAKE_out = {
+  (* Public key generation *)
+  proc gen_pskey(a: id, b: id) : unit
+
+  (* Active man-in-the-middle *)
+  proc proxy_msg1(a: id, i: int, b: id) : (id * msg) option
+  proc proxy_msg2(b: id, j: int, m1: id * msg) : msg option
+  proc proxy_msg3(a: id, i: int, m2: msg) : msg option
+  proc proxy_fin(b: id, j: int, m3: msg) : unit option
+
+  (* Get a session key *)
+  proc get_skey(h: id, i: int) : key option
+}.
+
+(** Complete Instance Handler **)
+module GWAKE0 (W : AKE_Scheme) : GWAKE_out = {
+  (* This tracks party instances' protocol state and their roles in it *)
+  var state_map: (id * int, role * instance_state) fmap
+  var psk_map: (id * id, pskey) fmap
+
+  proc gen_pskey(a: id, b: id) : unit = {
+    var k;
+    if ((a, b) \notin psk_map) {
+      k <$ dpskey;
+      psk_map.[(a, b)] <- k;
+    }
+  }
+
+  proc proxy_msg1(a: id, i: int, b: id) : (id * msg) option = {
+    var resp, m1, s, psk;
+    var r <- None;
+    if (   (a, i) \notin state_map
+        /\ (a, b) \in psk_map) {
+      psk <- oget psk_map.[(a, b)];
+      (resp, s) <@ W.msg1(a, b, psk);
+      (a, m1) <- resp;
+      state_map.[(a, i)] <- (Initiator, IPending s (a, m1));
+      r <- Some (a, m1);
+    }
+    return r;
+  }
+
+  proc proxy_msg2(b: id, j: int, m1: id * msg) : msg option = {
+    var a, m2, s, resp, psk;
+    var r <- None;
+
+    a <- m1.`1;
+    if (   (b, j) \notin state_map
+        /\ (a, b) \in psk_map) {
+      psk <- oget psk_map.[(a, b)];
+      resp <@ W.msg2(b, m1, psk);
+      match resp with
+      | None => state_map.[(b, j)] <- (Responder, Aborted);
+      | Some val => {
+        (m2, s) <- val;
+        state_map.[(b, j)] <- (Responder, RPending s m1 m2);
+        r <- Some m2;
+      }
+      end;
+    }
+    return r;
+  }
+
+  proc proxy_msg3(a: id, i: int, m2: msg) : msg option = {
+    var m3, key, role, inst_s, resp;
+    var r <- None;
+
+    if ((a, i) \in state_map) {
+      (role, inst_s) <- oget state_map.[(a, i)];
+      if (role = Initiator) {
+        if (inst_s is IPending s m1) {
+          resp <@ W.msg3(a, s, m2);
+          match resp with
+          | None => state_map.[(a, i)] <- (Initiator, Aborted);
+          | Some val => {
+            (m3, key) <- val;
+            if (card (get_ts_instances (m1, m2, m3) state_map) = 0) {
+              state_map.[(a, i)] <- (Initiator, Accepted (m1, m2, m3) key);
+              r <- Some m3;
+            } else {
+              state_map.[(a, i)] <- (Initiator, Aborted);
+            }
+          }
+          end;
+        }
+      }
+    }
+    return r;
+  }
+
+  proc proxy_fin(b: id, j: int, m3: msg) : unit option = {
+    var role, inst_s, resp;
+    var r <- None;
+
+    if ((b, j) \in state_map) {
+      (role, inst_s) <- oget state_map.[(b, j)];
+      if (role = Responder) {
+        if (inst_s is RPending s m1 m2) {
+          resp <@ W.fin(b, s, m3);
+          match resp with
+          | None => state_map.[(b, j)] <- (Responder, Aborted);
+          | Some key => {
+            if (card (get_ts_instances (m1, m2, m3) state_map) = 1) {
+              state_map.[(b, j)] <- (Responder, Accepted (m1, m2, m3) key);
+              r <- Some ();
+            } else {
+              state_map.[(b, j)] <- (Responder, Aborted);
+            }
+          }
+          end;
+        }
+      }
+    }
+    return r;
+  }
+
+  (* Observe a session key *)
+  proc get_skey(h: id, i: int) : key option = {
+    var role, inst_s, p_role, p_inst_s, ps, p, rev_ps, k'';
+    var k <- None;
+
+    if ((h, i) \in state_map) {
+      (role, inst_s) <- oget state_map.[(h, i)];
+      match inst_s with
+      | Accepted t k' => {
+        k'' <- k';
+        (* Get partners *)
+        ps <- get_partners (h, i) (get_trace (oget state_map.[(h, i)]).`2) ((oget state_map.[(h, i)]).`1) state_map;
+        rev_ps <- get_observed_partners (h, i) state_map;
+
+        (* If we have no observed partners then, we can test *)
+        if (card ps <= 1 /\ card rev_ps = 0) {
+          k   <- Some k'';
+          state_map.[(h, i)] <- (role, Observed t k'');
+        } else {
+          (* If a partner has revealed something, we must use the same key *)
+          p <- pick rev_ps;
+          (p_role, p_inst_s) <- oget state_map.[p];
+          if (p_inst_s is Observed _ kr) {
+            k'' <- kr;
+            k <- Some kr;
+            state_map.[(h, i)] <- (role, Observed t k'');
+          }
+        }
+      }
+      | Observed _ k'  => k <- Some k';
+      | IPending _ _   => { }
+      | RPending _ _ _ => { }
+      | Aborted        => { }
+      end;
+    }
+    return k;
+  }
+}.
+
+module GWAKE1 (W : AKE_Scheme) : GWAKE_out = {
+  (* This tracks party instances' protocol state and their roles in it *)
+  var state_map: (id * int, role * instance_state) fmap
+  var psk_map: (id * id, pskey) fmap
+  var seen_msgs: msg fset
+
+  proc gen_pskey(a: id, b: id) : unit = {
+    var k;
+    if ((a, b) \notin psk_map) {
+      k <$ dpskey;
+      psk_map.[(a, b)] <- k;
+    }
+  }
+
+  proc proxy_msg1(a: id, i: int, b: id) : (id * msg) option = {
+    var resp, m1, s, psk;
+    var r <- None;
+    if (   (a, i) \notin state_map
+        /\ (a, b) \in psk_map) {
+      psk <- oget psk_map.[(a, b)];
+      (resp, s) <@ W.msg1(a, b, psk);
+      (a, m1) <- resp;
+      (* Check if we have had a collision of messages *)
+      if (m1 \notin seen_msgs) {
+        seen_msgs <- seen_msgs `|` fset1 m1;
+        state_map.[(a, i)] <- (Initiator, IPending s (a, m1));
+        r <- Some (a, m1);
+      } else {
+        state_map.[(a, i)] <- (Initiator, Aborted);
+      }
+    }
+    return r;
+  }
+
+  proc proxy_msg2(b: id, j: int, m1: id * msg) : msg option = {
+    var a, m2, s, resp, psk;
+    var r <- None;
+
+    a <- m1.`1;
+    if (   (b, j) \notin state_map
+        /\ (a, b) \in psk_map) {
+      psk <- oget psk_map.[(a, b)];
+      resp <@ W.msg2(b, m1, psk);
+      match resp with
+      | None => state_map.[(b, j)] <- (Responder, Aborted);
+      | Some val => {
+        (m2, s) <- val;
+        (* Check if we have had a collision of messages *)
+        if (m2 \notin seen_msgs) {
+          seen_msgs <- seen_msgs `|` fset1 m2;
+          state_map.[(b, j)] <- (Responder, RPending s m1 m2);
+          r <- Some m2;
+        } else {
+          state_map.[(b, j)] <- (Responder, Aborted);
+        }
+      }
+      end;
+    }
+    return r;
+  }
+
+  proc proxy_msg3(a: id, i: int, m2: msg) : msg option = {
+    var m3, key, role, inst_s, resp;
+    var r <- None;
+
+    if ((a, i) \in state_map) {
+      (role, inst_s) <- oget state_map.[(a, i)];
+      if (role = Initiator) {
+        if (inst_s is IPending s m1) {
+          resp <@ W.msg3(a, s, m2);
+          match resp with
+          | None => state_map.[(a, i)] <- (Initiator, Aborted);
+          | Some val => {
+            (m3, key) <- val;
+            if (m3 \notin seen_msgs) {
+              seen_msgs <- seen_msgs `|` fset1 m3;
+              if (card (get_ts_instances (m1, m2, m3) state_map) = 0) {
+                state_map.[(a, i)] <- (Initiator, Accepted (m1, m2, m3) key);
+                r <- Some m3;
+              } else {
+                state_map.[(a, i)] <- (Initiator, Aborted);
+              }
+            } else {
+              state_map.[(a, i)] <- (Initiator, Aborted);
+            }
+          }
+          end;
+        }
+      }
+    }
+    return r;
+  }
+
+  proc proxy_fin(b: id, j: int, m3: msg) : unit option = {
+    var role, inst_s, resp;
+    var r <- None;
+
+    if ((b, j) \in state_map) {
+      (role, inst_s) <- oget state_map.[(b, j)];
+      if (role = Responder) {
+        if (inst_s is RPending s m1 m2) {
+          resp <@ W.fin(b, s, m3);
+          match resp with
+          | None => state_map.[(b, j)] <- (Responder, Aborted);
+          | Some key => {
+            if (card (get_ts_instances (m1, m2, m3) state_map) = 1) {
+              state_map.[(b, j)] <- (Responder, Accepted (m1, m2, m3) key);
+              r <- Some ();
+            } else {
+              state_map.[(b, j)] <- (Responder, Aborted);
+            }
+          }
+          end;
+        }
+      }
+    }
+    return r;
+  }
+
+  (* Observe a session key *)
+  proc get_skey(h: id, i: int) : key option = {
+    var role, inst_s, p_role, p_inst_s, ps, p, rev_ps, k;
+    var ko <- None;
+
+    if ((h, i) \in state_map) {
+      (role, inst_s) <- oget state_map.[(h, i)];
+      match inst_s with
+      | Accepted t k' => {
+        k <- k';
+        (* Get partners *)
+        ps <- get_partners (h, i) (get_trace (oget state_map.[(h, i)]).`2) ((oget state_map.[(h, i)]).`1) state_map;
+        rev_ps <- get_observed_partners (h, i) state_map;
+
+        (* If we have no observed partners then, we can test *)
+        if (!(card ps <= 1 /\ card rev_ps = 0)) {
+          (* If a partner has revealed something, we must use the same key *)
+          p <- pick rev_ps;
+          (p_role, p_inst_s) <- oget state_map.[p];
+          if (p_inst_s is Observed _ kr) {
+            k <- kr;
+          }
+        }
+        ko <- Some k;
+        state_map.[(h, i)] <- (role, Observed t k);
+      }
+      | Observed _ k'  => ko <- Some k';
+      | IPending _ _   => { }
+      | RPending _ _ _ => { }
+      | Aborted        => { }
+      end;
+    }
+    return ko;
+  }
+}.
+
+module type Adv_GWAKE (GW : GWAKE_out) = {
+  proc run() : bool
+}.

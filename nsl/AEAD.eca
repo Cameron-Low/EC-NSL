@@ -1,0 +1,103 @@
+require import Distr FMap.
+
+type key, data, ctxt, ptxt.
+type handle.
+
+op dkey : key distr.
+op dctxt : ctxt distr.
+
+op enc : key -> data -> ptxt -> ctxt distr.
+op dec : key -> data -> ctxt -> ptxt option.
+
+axiom correctness k ad p c:
+   k \in dkey
+=> c \in enc k ad p
+=> dec k ad c = Some p.
+
+module type AEAD_in = {
+  proc get(h: handle) : key option
+  proc ex(h: handle)  : bool
+}.
+
+module type AEAD_out = {
+  proc enc(h: handle, ad: data, p: ptxt) : ctxt option
+  proc dec(h: handle, ad: data, c: ctxt) : ptxt option
+}.
+
+module type AEAD (In : AEAD_in) = {
+  include AEAD_out
+}.
+
+(* We assume no ctxt collisions *)
+module (AEAD0 : AEAD) (In : AEAD_in) = {
+  proc enc(h: handle, ad: data, p: ptxt) : ctxt option = {
+    var c, k;
+    var r <- None;
+
+    k <@ In.get(h);
+    if (k <> None) {
+      c <$ enc (oget k) ad p;
+      r <- Some c;
+    }
+    return r;
+  }
+
+  proc dec(h: handle, ad: data, c: ctxt) : ptxt option = {
+    var p <- None;
+    var k;
+
+    k <@ In.get(h);
+    if (k <> None) {
+      p <- dec (oget k) ad c;
+    }
+    return p;
+  }
+}.
+
+module (AEAD1 : AEAD) (In : AEAD_in) = {
+  var ctxts : (handle * data * ctxt, ptxt) fmap
+
+  proc enc(h: handle, ad: data, p : ptxt) : ctxt option = {
+    var c, b;
+    var r <- None;
+
+    b <@ In.ex(h);
+    if (b) {
+      c <$ dctxt;
+      ctxts.[(h, ad, c)] <- p;
+      r <- Some c;
+    }
+    return r;
+  }
+
+  proc dec(h: handle, ad: data, c: ctxt) : ptxt option = {
+    var b;
+    var p <- None;
+
+    b <@ In.ex(h);
+    if (b) {
+      p <- ctxts.[h, ad, c];
+    }
+    return p;
+  }
+}.
+
+
+(* Defining and wiring the GAEAD game *)
+module type GAEAD_out = {
+  include AEAD_out
+  include AEAD_in
+  proc gen(h: handle) : unit
+}.
+
+module GAEADb (In: AEAD_in) (AEAD: AEAD) = {
+  include In
+  include AEAD(In)
+}.
+
+module GAEAD0 (In: AEAD_in) = GAEADb(In, AEAD0).
+module GAEAD1 (In: AEAD_in) = GAEADb(In, AEAD1).
+
+module type Adv_GAEAD (G : GAEAD_out) = {
+  proc run() : bool
+}.
