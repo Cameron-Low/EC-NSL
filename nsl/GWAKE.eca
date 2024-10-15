@@ -64,6 +64,9 @@ op get_observed_partners ai  (fmap : (int, id * role * instance_state) fmap) =
     (fun bj => oapp (fun z => is_observed z) false (Some (oget fmap.[bj]).`3))
     (get_partners ai (get_trace s) r fmap).
 
+(********************************************************************************)
+(* Defining AKE schemes *)
+
 module type AKE_Scheme = {
   proc msg1(a: id, b: id, psk: pskey) : msg * istate
   proc msg2(b: id, m1: id * msg, psk: pskey) : (msg * rstate) option
@@ -71,7 +74,9 @@ module type AKE_Scheme = {
   proc fin(b: id, s: rstate, m3: msg) : key option
 }.
 
-(* WAKE package and game *)
+
+(********************************************************************************)
+(* WAKE package and games *)
 
 module type GWAKE_out = {
   (* Public key generation *)
@@ -89,11 +94,23 @@ module type GWAKE_out = {
   proc is_partnered (i: int, j: int) : bool
 }.
 
+module type GWAKE_out_i = {
+  include GWAKE_out 
+
+  proc init_mem() : unit
+}.
+
 
 module GWAKEb (W : AKE_Scheme) = {
   var state_map: (int, id * role * instance_state) fmap
   var psk_map: (id * id, pskey) fmap
   var cnt: int
+
+  proc init_mem() : unit = {
+    state_map <- empty;
+    psk_map <- empty;
+    cnt <- 0;
+  }
 
   proc gen_pskey(a: id, b: id) : unit = {
     var k;
@@ -244,13 +261,13 @@ module GWAKEb (W : AKE_Scheme) = {
   }
 }.
 
-module GWAKE0 (W : AKE_Scheme) : GWAKE_out = {
+module GWAKE0 (W : AKE_Scheme) : GWAKE_out_i = {
   include GWAKEb(W)
 
   proc test = GWAKEb(W).rev_skey
 }.
 
-module GWAKE1 (W : AKE_Scheme) : GWAKE_out = {
+module GWAKE1 (W : AKE_Scheme) : GWAKE_out_i = {
   include GWAKEb(W)
 
   proc test (i: int) : key option = {
@@ -289,6 +306,22 @@ module GWAKE1 (W : AKE_Scheme) : GWAKE_out = {
   }
 }.
 
-module type Adv_GWAKE (GW : GWAKE_out) = {
+
+(********************************************************************************)
+(* Adversary and Experiment *)
+
+module type A_GWAKE (GW : GWAKE_out) = {
   proc run() : bool
+}.
+
+module E_GWAKE (O : GWAKE_out_i) (A : A_GWAKE) = {
+  proc run() : bool = {
+    var b : bool;
+
+    O.init_mem();
+    
+    b <@ A(O).run();
+    
+    return b;
+  }
 }.
