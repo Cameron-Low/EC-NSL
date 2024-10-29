@@ -113,60 +113,57 @@ module NSL : AKE_Scheme = {
 
 module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
   module WAKE_O : GWAKE_out = {
-    var state_map: (int, id * role * instance_state) fmap
-    var cnt: int
+    var state_map: (id * int, role * instance_state) fmap
   
     proc init_mem() : unit = {
       state_map <- empty;
-      cnt <- 0;
     }
   
     proc gen_pskey = O.gen
   
-    proc init(a, r, b) = {
+    proc init(a, i, r, b) = {
       var ex, na;
       var mo <- None;
   
       ex <@ O.ex((a, b));
       if (ex) {
-        cnt <- cnt + 1;
         if (r = Initiator) {
           na <$ dnonce;
           mo <@ O.enc((a, b), msg1_data a b, na);
-          state_map.[cnt] <- (a, Initiator, IPending (b, witness, na, oget mo) (b, oget mo));
+          state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, oget mo) (b, oget mo));
         } else {
-          state_map.[cnt] <- (a, Responder, RStarted b);
+          state_map.[(a, i)] <- (Responder, RStarted b);
         }
       }
-      return (cnt, mo);
+      return (mo);
     }
 
 
-    proc send_msg2(j, m1) = {
-      var a, ca, b, role, st, n, nb;
+    proc send_msg2(b, j, m1) = {
+      var a, ca, role, st, n, nb;
       var mo <- None;
   
       (a, ca) <- m1;
-      (b, role, st) <- oget state_map.[j];
+      (role, st) <- oget state_map.[(b, j)];
       if (st = RStarted a) {
         n <@ O.dec((a, b), msg1_data a b, ca);
         if (n is Some na) {
           nb <$ dnonce;
           mo <@ O.enc((a, b), msg2_data a b ca, nb);
-          state_map.[j] <- (b, Responder, RPending (a, witness, na, nb, ca, oget mo) m1 (oget mo));
+          state_map.[(b, j)] <- (Responder, RPending (a, witness, na, nb, ca, oget mo) m1 (oget mo));
         } else {
-          state_map.[j] <- (b, Responder, Aborted);
+          state_map.[(b, j)] <- (Responder, Aborted);
         }
       }
       return mo;
     }
 
-    proc send_msg3(i, m2) = {
-      var a, role, st, b, psk, na, ca, n, skey, ok;
+    proc send_msg3(a, i, m2) = {
+      var role, st, b, psk, na, ca, n, skey, ok;
       var mo <- None;
   
-      if (i \in state_map) {
-        (a, role, st) <- oget state_map.[i];
+      if ((a, i) \in state_map) {
+        (role, st) <- oget state_map.[(a, i)];
         if (st is IPending s m1) {
           (b, psk, na, ca) <- s;
           n <@ O.dec((a, b), msg2_data a b ca, m2);
@@ -174,60 +171,60 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
             skey <- prf (na, nb) (a, b);
             ok <$ dnonce;
             mo <@ O.enc((a, b), msg3_data a b ca m2, ok);
-            state_map.[i] <- (a, Initiator, Accepted (m1, m2, oget mo) skey);
+            state_map.[(a, i)] <- (Initiator, Accepted (m1, m2, oget mo) skey);
           } else {
-            state_map.[i] <- (a, Initiator, Aborted);
+            state_map.[(a, i)] <- (Initiator, Aborted);
           }
         }
       }
       return mo;
     }
 
-    proc send_fin(j, m3) = {
-      var b, role, st, a, psk, na, nb, ca, cb, ok, skey;
+    proc send_fin(b, j, m3) = {
+      var role, st, a, psk, na, nb, ca, cb, ok, skey;
       var mo <- None;
 
-      if (j \in state_map) {
-        (b, role, st) <- oget state_map.[j];
+      if ((b, j) \in state_map) {
+        (role, st) <- oget state_map.[(b, j)];
         if (st is RPending s m1 m2) {
           (a, psk, na, nb, ca, cb) <- s;
           ok <@ O.dec((a, b), msg3_data a b ca cb, m3);
           if (ok <> None) {
             skey <- prf (na, nb) (a, b);
-            state_map.[j] <- (b, Responder, Accepted (m1, m2, m3) skey);
+            state_map.[(b, j)] <- (Responder, Accepted (m1, m2, m3) skey);
             mo <- Some ();
           } else {
-            state_map.[j] <- (b, Responder, Aborted);
+            state_map.[(b, j)] <- (Responder, Aborted);
           }
         }
       }
       return mo;
     }
 
-    proc rev_skey(i) = {
-      var id, role, st, p_id, p_role, p_st, ps, p, k;
+    proc rev_skey(a, i) = {
+      var role, st, p_role, p_st, ps, p, k;
       var ko <- None;
   
-      if (i \in state_map) {
-        (id, role, st) <- oget state_map.[i];
+      if ((a, i) \in state_map) {
+        (role, st) <- oget state_map.[(a, i)];
         match st with
         | Accepted trace k' => {
           k <- k';
           (* Get partners *)
-          ps <- get_partners i (Some trace) role state_map;
+          ps <- get_partners (a, i) (Some trace) role state_map;
           if (card ps <= 1) {
-            ps <- get_observed_partners i state_map;
+            ps <- get_observed_partners (a, i) state_map;
             (* If we have no observed partners then, we can test *)
             if (card ps <> 0) {
               (* If a partner has revealed something, we must use the same key *)
               p <- pick ps;
-              (p_id, p_role, p_st) <- oget GWAKEb.state_map.[p];
+              (p_role, p_st) <- oget GWAKEb.state_map.[p];
               if (p_st is Observed _ p_k) {
                 k <- p_k;
               }
             }
             ko <- Some k;
-            state_map.[i] <- (id, role, Observed trace k);
+            state_map.[(a, i)] <- (role, Observed trace k);
           }
         }
         | Observed _ k'  => ko <- Some k';
@@ -254,15 +251,13 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
 (* Games *)
 
 module GWAKE_ideal_aead = {
-  var state_map: (int, id * role * instance_state) fmap
+  var state_map: (id * int, role * instance_state) fmap
   var psk_map: (id * id, pskey) fmap
   var dec_map: (pskey * msg_data * ctxt, nonce) fmap
-  var cnt: int
 
   proc init_mem() : unit = {
     state_map <- empty;
     psk_map <- empty;
-    cnt <- 0;
   }
 
   proc gen_pskey(a: id, b: id) : unit = {
@@ -273,52 +268,51 @@ module GWAKE_ideal_aead = {
     }
   }
   
-  proc init(a, r, b) = {
+  proc init(a, i, r, b) = {
     var na, ca;
     var mo <- None;
  
     if ((a, b) \in psk_map) {
-      cnt <- cnt + 1;
       if (r = Initiator) {
         na <$ dnonce;
         ca <$ dctxt;
         mo <- Some ca;
         dec_map.[(oget psk_map.[(a,b)], msg1_data a b, ca)] <- na;
-        state_map.[cnt] <- (a, Initiator, IPending (b, witness, na, ca) (b, ca));
+        state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, ca) (b, ca));
       } else {
-        state_map.[cnt] <- (a, Responder, RStarted b);
+        state_map.[(a, i)] <- (Responder, RStarted b);
       }
     }
-    return (cnt, mo);
+    return mo;
   }
 
 
-  proc send_msg2(j, m1) = {
-    var a, ca, b, role, st, nb, cb;
+  proc send_msg2(b, j, m1) = {
+    var a, ca, role, st, nb, cb;
     var mo <- None;
  
     (a, ca) <- m1;
-    (b, role, st) <- oget state_map.[j];
+    (role, st) <- oget state_map.[(b, j)];
     if (st = RStarted a) {
       if (dec_map.[(oget psk_map.[(a, b)], msg1_data a b, ca)] is Some na) {
         nb <$ dnonce;
         cb <$ dctxt;
         mo <- Some cb;
         dec_map.[(oget psk_map.[(a,b)], msg2_data a b ca, cb)] <- nb;
-        state_map.[j] <- (b, Responder, RPending (a, witness, na, nb, ca, cb) m1 cb);
+        state_map.[(b, j)] <- (Responder, RPending (a, witness, na, nb, ca, cb) m1 cb);
       } else {
-        state_map.[j] <- (b, Responder, Aborted);
+        state_map.[(b, j)] <- (Responder, Aborted);
       }
     }
     return mo;
   }
 
-  proc send_msg3(i, m2) = {
-    var a, role, st, b, psk, na, ca, skey, ok, caf;
+  proc send_msg3(a, i, m2) = {
+    var role, st, b, psk, na, ca, skey, ok, caf;
     var mo <- None;
  
-    if (i \in state_map) {
-      (a, role, st) <- oget state_map.[i];
+    if ((a, i) \in state_map) {
+      (role, st) <- oget state_map.[(a, i)];
       if (st is IPending s m1) {
         (b, psk, na, ca) <- s;
         if (dec_map.[(oget psk_map.[(a, b)], msg2_data a b ca, m2)] is Some nb) {
@@ -327,59 +321,59 @@ module GWAKE_ideal_aead = {
           caf <$ dctxt;
           mo <- Some caf;
           dec_map.[(oget psk_map.[(a,b)], msg3_data a b ca m2, caf)] <- ok;
-          state_map.[i] <- (a, Initiator, Accepted (m1, m2, caf) skey);
+          state_map.[(a, i)] <- (Initiator, Accepted (m1, m2, caf) skey);
          } else {
-          state_map.[i] <- (a, Initiator, Aborted);
+          state_map.[(a, i)] <- (Initiator, Aborted);
         }
       }
     }
     return mo;
   }
 
-  proc send_fin(j, m3) = {
-    var b, role, st, a, psk, na, nb, ca, cb, skey;
+  proc send_fin(b, j, m3) = {
+    var role, st, a, psk, na, nb, ca, cb, skey;
     var mo <- None;
 
-    if (j \in state_map) {
-      (b, role, st) <- oget state_map.[j];
+    if ((b, j) \in state_map) {
+      (role, st) <- oget state_map.[(b, j)];
       if (st is RPending s m1 m2) {
         (a, psk, na, nb, ca, cb) <- s;
         if (dec_map.[(oget psk_map.[(a, b)], msg3_data a b ca cb, m3)] <> None) {
           skey <- prf (na, nb) (a, b);
-          state_map.[j] <- (b, Responder, Accepted (m1, m2, m3) skey);
+          state_map.[(b, j)] <- (Responder, Accepted (m1, m2, m3) skey);
           mo <- Some ();
         } else {
-          state_map.[j] <- (b, Responder, Aborted);
+          state_map.[(b, j)] <- (Responder, Aborted);
         }
       }
     }
     return mo;
   }
 
-  proc rev_skey(i) = {
-    var id, role, st, p_id, p_role, p_st, ps, p, k;
+  proc rev_skey(a, i) = {
+    var role, st, p_role, p_st, ps, p, k;
     var ko <- None;
  
-    if (i \in state_map) {
-      (id, role, st) <- oget state_map.[i];
+    if ((a, i) \in state_map) {
+      (role, st) <- oget state_map.[(a, i)];
       match st with
       | Accepted trace k' => {
         k <- k';
         (* Get partners *)
-        ps <- get_partners i (Some trace) role state_map;
+        ps <- get_partners (a, i) (Some trace) role state_map;
         if (card ps <= 1) {
-          ps <- get_observed_partners i state_map;
+          ps <- get_observed_partners (a, i) state_map;
           (* If we have no observed partners then, we can test *)
           if (card ps <> 0) {
             (* If a partner has revealed something, we must use the same key *)
             p <- pick ps;
-            (p_id, p_role, p_st) <- oget GWAKEb.state_map.[p];
+            (p_role, p_st) <- oget GWAKEb.state_map.[p];
             if (p_st is Observed _ p_k) {
               k <- p_k;
             }
           }
           ko <- Some k;
-          state_map.[i] <- (id, role, Observed trace k);
+          state_map.[(a, i)] <- (role, Observed trace k);
         }
       }
       | Observed _ k'  => ko <- Some k';
@@ -395,7 +389,7 @@ module GWAKE_ideal_aead = {
   proc test = rev_skey
 }.
 
-
+(*
 module GWAKE_nocol = {
   var state_map: (int, id * role * instance_state) fmap
   var psk_map: (id * id, pskey) fmap
@@ -704,7 +698,7 @@ module GWAKE_move_ns = {
  
   proc test = rev_skey
 }.
-
+*)
 
 
 section.
@@ -735,11 +729,37 @@ do! congr.
        ={psk_map}(GWAKEb, GAEADb)
     /\ ={cnt}(GWAKEb, Red_AEAD.WAKE_O)
     /\ (forall i, state_equality i GWAKEb.state_map{1} Red_AEAD.WAKE_O.state_map{2})
+    /\ (forall i a b, Red_AEAD.WAKE_O.state_map.[i] = Some (b, Responder, RStarted a) => (a, b) \in GAEADb.psk_map){2}
   ).
   + proc.
-    by if; auto.
+    if; auto. smt(get_setE).
   + proc; inline.
-    sp; if=> //.
+    sp; if=> //. 
+    sp; if => //. 
+    - match Some {2} 6. auto => /#.
+      auto => />. 
+      admit.
+    auto => /> &1 &2 A B C D E. split. smt(get_setE). 
+    move => i a1 b1. rewrite get_setE //=.
+    
+  + proc; inline.
+    sp; if => //. smt().
+    match Some {2} 5. auto => /> &m1 E F G H. 
+    rewrite -fmapP.
+apply (H j{m0} _ _ role{m0}). rewrite E.
+    exists  
+
+smt(get_setE).    
+
+    sp; match => //. admit. admit. admit. admit. admit. admit.
+    move => a psk a' psk'.
+    match Some {2} 5. auto => />.
+
+    sp; match =. smt().
+    sp; if => //. smt().
+    sp. match Some {2} 1. auto => />. smt(get_setE).
+match =.
+
 admitted.
   
 
