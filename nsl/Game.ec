@@ -85,8 +85,8 @@ module NSL : AKE_Scheme = {
 
     (b, psk, na, ca) <- s;
     nbo <- dec psk (msg2_data a b ca) cb;
-    if (nbo <> None) {
-      skey <- prf (na, oget nbo) (a, b);
+    if (nbo is Some nb) {
+      skey <- prf (na, nb) (a, b);
       ok <$ dnonce;
       caf <$ enc psk (msg3_data a b ca cb) ok;
       r <- Some (caf, skey);
@@ -695,12 +695,34 @@ match s with
 | IPending st m1 => 
   let (id, psk, na, ca) = st in IPending (id, witness, na, ca) m1 
 | RPending st m1 m2 => 
-  let (id, psk, na, nb, ca, cb) = st in RPending (id, witness, na, na, ca, cb) m1 m2 
+  let (id, psk, na, nb, ca, cb) = st in RPending (id, witness, na, nb, ca, cb) m1 m2 
 | Accepted _ _ => s
 | Observed _ _ => s
 | Aborted => s
 end.
 
+local inductive GWAKE0_inv (sm: (id * int, role * instance_state) fmap) (pskm : (id * id, pskey) fmap) (a: id) (i: int) =
+| GWAKE0_undef of
+    (sm.[a, i] = None)
+| GWAKE0_aborted r of
+    (sm.[a, i] = Some (r, Aborted))
+| GWAKE0_ipending b na c1 kab of
+    (sm.[a, i] = Some (Initiator, IPending (b, kab, na, c1) (a, c1)))
+  & (pskm.[a, b] = Some kab)
+| GWAKE0_rpending b nb na c1 c2 kba of
+    (sm.[a, i] = Some (Responder, RPending (b, kba, nb, na, c1, c2) (b, c1) c2))
+  & (pskm.[b, a] = Some kba)
+| GWAKE0_accepted r tr k of
+    (sm.[a, i] = Some (r, Accepted tr k))
+| GWAKE0_observed r tr k of
+    (sm.[a, i] = Some (r, Observed tr k)).
+
+local hoare GWAKE0_inv_gen_pskey: GWAKE0(NSL).gen_pskey:
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+admitted.
+    
 lemma Step1 &m:
     `|Pr[E_GWAKE(GWAKE0(NSL), A).run() @ &m : res] - Pr[E_GWAKE(GWAKE_ideal_aead, A).run() @ &m : res]|
   = 
@@ -713,8 +735,72 @@ do! congr.
   call (:
        ={psk_map}(GWAKEb, GAEADb)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+    /\ (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i){1}
   ).
-  + proc.
-    by if; auto. 
-  + proc; inline.
-  abort.
+  - conseq (:
+       ={psk_map}(GWAKEb, GAEADb)
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+       ) GWAKE0_inv_gen_pskey _ => //.
+    proc.
+    by if; auto.
+  - proc; inline.
+    sp; if=> //.
+    + smt().
+    match Some {2} 6.
+    + auto; smt(get_setE).
+    auto=> />.
+    smt(get_setE).
+  - proc; inline.
+    sp; if=> //.
+    + smt().
+    match Some {2} 5.
+    + auto; smt(get_setE).
+    sp; match =.
+    + smt().
+    + auto=> />.
+      smt(get_setE).
+    move=> na.
+    match Some {1} 5.
+    + auto; smt(get_setE).
+    match Some {2} 6.
+    + auto; smt(get_setE).
+    auto; smt(get_setE).
+  - proc; inline.
+    sp; if=> //.
+    + smt().
+    sp; match; 1..5: smt(); 2..5: by auto.
+    move=> sil m1l sir m1r.
+    match Some {2} 6.
+    + auto=> />. admit. (* inv for psk in state_map{1] = psk in psk_map{2} *)
+    sp; match =.
+    + auto=> />. admit. (* inv for psk in state_map{1] = psk in psk_map{2} *)
+    + match None {1} 2; auto; smt(get_setE).
+    move=> nb.
+    match Some {2} 7.
+    + admit. (* inv for psk in state_map{1] = psk in psk_map{2} *)
+    match Some {1} 6.
+    + auto; smt(get_setE).
+    auto=> />.
+    admit. (* inv for psk in state_map{1] = psk in psk_map{2} *)
+
+  + admit.
+
+  + proc; inline. 
+    sp; if=> //.
+    + smt().
+    sp; match; 1..5: smt(); 1,2,5: by auto.
+    + admit.
+    auto; smt().
+
+  + proc; inline. 
+    sp; if=> //.
+    + smt().
+    sp; match; 1..5: smt(); 1,2,5: by auto.
+    + admit.
+    auto; smt().
+  
+  + auto=> />.
+    smt(emptyE).
+
+admit.
+qed.
