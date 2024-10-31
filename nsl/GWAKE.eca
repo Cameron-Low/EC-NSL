@@ -15,7 +15,6 @@ type trace = (id * msg) * msg * msg.
 
 (* Represents an instance state in the protocol *)
 type instance_state = [
-  RStarted of id 
 | IPending of istate & (id * msg)
 | RPending of rstate & (id * msg) & msg
 | Accepted of trace & key
@@ -29,7 +28,6 @@ with s = Accepted t _   => Some t
 with s = Observed t _   => Some t
 with s = IPending _ _   => None
 with s = RPending _ _ _ => None
-with s = RStarted _     => None
 with s = Aborted        => None.
 
 (* Decide if an instance has been revelaed *)
@@ -38,7 +36,6 @@ with s = Observed _ _   => true
 with s = Accepted _ _   => false
 with s = IPending _ _   => false
 with s = RPending _ _ _ => false
-with s = RStarted _     => false
 with s = Aborted        => false.
 
 (* Get all trace-sharing instances *)
@@ -84,7 +81,7 @@ module type GWAKE_out = {
   proc gen_pskey(a: id, b: id) : unit
 
   (* Active man-in-the-middle *)
-  proc init(a: id, i: int, r : role, b:  id) : msg option
+  proc send_msg1(a: id, i: int, b:  id) : msg option
   proc send_msg2(b: id, j: int, m1: id * msg) : msg option
   proc send_msg3(a: id, i: int, m2: msg) : msg option
   proc send_fin(b: id, j: int, m3: msg) : unit option
@@ -117,19 +114,15 @@ module GWAKEb (P : AKE_Scheme) = {
     }
   }
 
-  proc init(a: id, i: int, r:  role, b: id) : msg option = {
+  proc send_msg1(a: id, i: int, b: id) : msg option = {
     var psk, st, m;
     var mo <- None;
 
-    if ((a, b) \in psk_map) {
-      if (r = Initiator) {
-        psk <- oget psk_map.[(a, b)];
-        (m, st) <@ P.msg1(a, b, psk);
-        mo <- Some m.`2;
-        state_map.[(a, i)] <- (Initiator, IPending st m);
-      } else {
-        state_map.[(a, i)] <- (Responder, RStarted b);
-      }
+    if ((a, i) \notin state_map /\ (a, b) \in psk_map) {
+      psk <- oget psk_map.[(a, b)];
+      (m, st) <@ P.msg1(a, b, psk);
+      mo <- Some m.`2;
+      state_map.[(a, i)] <- (Initiator, IPending st m);
     }
     return mo;
   }
@@ -141,7 +134,7 @@ module GWAKEb (P : AKE_Scheme) = {
 
     a <- m1.`1;
     (role, st) <- oget state_map.[(b, j)];
-    if (st = RStarted a) {
+    if ((b, j) \notin state_map /\ (a, b) \in psk_map) {
       psk <- oget psk_map.[(a, b)];
       resp <@ P.msg2(b, m1, psk);
       match resp with
@@ -225,7 +218,6 @@ module GWAKEb (P : AKE_Scheme) = {
       | Observed _ k'  => ko <- Some k';
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | RStarted _     => { }
       | Aborted        => { }
       end;
     }
@@ -271,7 +263,6 @@ module GWAKE1 (P : AKE_Scheme) : GWAKE_out_i = {
       | Observed _ k'  => ko <- Some k';
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | RStarted _     => { }
       | Aborted        => { }
       end;
     }

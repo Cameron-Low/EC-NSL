@@ -121,31 +121,28 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
   
     proc gen_pskey = O.gen
   
-    proc init(a, i, r, b) = {
+    proc send_msg1(a, i, b) = {
       var ex, na;
       var mo <- None;
   
       ex <@ O.ex((a, b));
-      if (ex) {
-        if (r = Initiator) {
-          na <$ dnonce;
-          mo <@ O.enc((a, b), msg1_data a b, na);
-          state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, oget mo) (b, oget mo));
-        } else {
-          state_map.[(a, i)] <- (Responder, RStarted b);
-        }
+      if ((a, i) \notin state_map /\ ex) {
+        na <$ dnonce;
+        mo <@ O.enc((a, b), msg1_data a b, na);
+        state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, oget mo) (a, oget mo));
       }
       return (mo);
     }
 
 
     proc send_msg2(b, j, m1) = {
-      var a, ca, role, st, n, nb;
+      var a, ca, role, st, ex, n, nb;
       var mo <- None;
   
       (a, ca) <- m1;
       (role, st) <- oget state_map.[(b, j)];
-      if (st = RStarted a) {
+      ex <@ O.ex((a, b));
+      if ((b, j) \notin state_map /\ ex) {
         n <@ O.dec((a, b), msg1_data a b, ca);
         if (n is Some na) {
           nb <$ dnonce;
@@ -230,7 +227,6 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
         | Observed _ k'  => ko <- Some k';
         | IPending _ _   => { }
         | RPending _ _ _ => { }
-        | RStarted _     => { }
         | Aborted        => { }
         end;
       }
@@ -268,20 +264,16 @@ module GWAKE_ideal_aead = {
     }
   }
   
-  proc init(a, i, r, b) = {
+  proc send_msg1(a, i, b) = {
     var na, ca;
     var mo <- None;
  
-    if ((a, b) \in psk_map) {
-      if (r = Initiator) {
-        na <$ dnonce;
-        ca <$ dctxt;
-        mo <- Some ca;
-        dec_map.[(oget psk_map.[(a,b)], msg1_data a b, ca)] <- na;
-        state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, ca) (b, ca));
-      } else {
-        state_map.[(a, i)] <- (Responder, RStarted b);
-      }
+    if ((a, i) \notin state_map /\ (a, b) \in psk_map) {
+      na <$ dnonce;
+      ca <$ dctxt;
+      mo <- Some ca;
+      dec_map.[(oget psk_map.[(a,b)], msg1_data a b, ca)] <- na;
+      state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, ca) (a, ca));
     }
     return mo;
   }
@@ -293,7 +285,7 @@ module GWAKE_ideal_aead = {
  
     (a, ca) <- m1;
     (role, st) <- oget state_map.[(b, j)];
-    if (st = RStarted a) {
+    if ((b, j) \notin state_map /\ (a, b) \in psk_map) {
       if (dec_map.[(oget psk_map.[(a, b)], msg1_data a b, ca)] is Some na) {
         nb <$ dnonce;
         cb <$ dctxt;
@@ -379,7 +371,6 @@ module GWAKE_ideal_aead = {
       | Observed _ k'  => ko <- Some k';
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | RStarted _     => { }
       | Aborted        => { }
       end;
     }
@@ -699,16 +690,16 @@ section.
 
 declare module A <: A_GWAKE {-GWAKE0, -GWAKE_ideal_aead, -GAEAD0, -GAEAD1, -Red_AEAD }.
 
-local op state_equality (i: int) (sm1 sm2 : (int, id * role * instance_state) fmap) =
-  match sm1.[i] with
-  | None => i \notin sm2
-  | Some v1 =>
-    match sm2.[i] with
-    | None => false
-    | Some v2 =>
-      v1 = v2 (* FIXME: equality on all but `psk` *)
-    end
-  end.
+local op clear_psk (s : instance_state) =
+match s with
+| IPending st m1 => 
+  let (id, psk, na, ca) = st in IPending (id, witness, na, ca) m1 
+| RPending st m1 m2 => 
+  let (id, psk, na, nb, ca, cb) = st in RPending (id, witness, na, na, ca, cb) m1 m2 
+| Accepted _ _ => s
+| Observed _ _ => s
+| Aborted => s
+end.
 
 lemma Step1 &m:
     `|Pr[E_GWAKE(GWAKE0(NSL), A).run() @ &m : res] - Pr[E_GWAKE(GWAKE_ideal_aead, A).run() @ &m : res]|
@@ -721,46 +712,9 @@ do! congr.
   wp.
   call (:
        ={psk_map}(GWAKEb, GAEADb)
-    /\ ={cnt}(GWAKEb, Red_AEAD.WAKE_O)
-    /\ (forall i, state_equality i GWAKEb.state_map{1} Red_AEAD.WAKE_O.state_map{2})
-    /\ (forall i a b, Red_AEAD.WAKE_O.state_map.[i] = Some (b, Responder, RStarted a) => (a, b) \in GAEADb.psk_map){2}
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
   ).
   + proc.
-    if; auto. smt(get_setE).
+    by if; auto. 
   + proc; inline.
-    sp; if=> //. 
-    sp; if => //. 
-    - match Some {2} 6. auto => /#.
-      auto => />. 
-      admit.
-    auto => /> &1 &2 A B C D E. split. smt(get_setE). 
-    move => i a1 b1. rewrite get_setE //=.
-    
-  + proc; inline.
-    sp; if => //. smt().
-    match Some {2} 5. auto => /> &m1 E F G H. 
-    rewrite -fmapP.
-apply (H j{m0} _ _ role{m0}). rewrite E.
-    exists  
-
-smt(get_setE).    
-
-    sp; match => //. admit. admit. admit. admit. admit. admit.
-    move => a psk a' psk'.
-    match Some {2} 5. auto => />.
-
-    sp; match =. smt().
-    sp; if => //. smt().
-    sp. match Some {2} 1. auto => />. smt(get_setE).
-match =.
-
-admitted.
-  
-
-lemma Step2 &m:
-    `|Pr[E_GWAKE(GWAKE_ideal_aead, A).run() @ &m : res] - Pr[E_GWAKE(GWAKE_ideal_aead_nc, A).run() @ &m : res]|
-  <=
-    BB.
-
-
-lemma Step3
+  abort.
