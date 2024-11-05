@@ -101,7 +101,7 @@ module NSL : AKE_Scheme = {
 
     (a, psk, na, nb, ca, cb) <- s;
     ok <- dec psk (msg3_data a b ca cb) caf;
-    if (ok <> None) {
+    if (ok is Some nok) {
       skey <- prf (na, nb) (a, b);
       r <- Some skey;
     }
@@ -721,8 +721,105 @@ local hoare GWAKE0_inv_gen_pskey: GWAKE0(NSL).gen_pskey:
     (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
 ==> 
     (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
-admitted.
+proc; inline *.
+if => //.
+auto => />.
+qed.
     
+local hoare GWAKE0_inv_send_msg1: GWAKE0(NSL).send_msg1:
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+proc; inline *.
+sp; if => //.
+auto => /> &hr inv ainin abin na0 _ ca0 _ a' i'.
+case ((a', i') = (a, i){hr}) => /> => [|neq_ai].
+- admit.
+case: (inv a' i') => [|r'|b' na' c1' kab'|id' nb' na' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+- apply: GWAKE0_undef; 1: by smt(get_setE).
+- admit.
+- admit. 
+- admit.
+- admit.
+admit.
+qed.
+    
+local hoare GWAKE0_inv_send_msg2: GWAKE0(NSL).send_msg2:
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match.
+- match None 2; 1: by auto.
+  auto => />. 
+  admit.
+match Some 5; 1: auto => /#.
+auto => />.
+admit.
+qed.
+
+local hoare GWAKE0_inv_send_msg3: GWAKE0(NSL).send_msg3:
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match; 2..5: auto.
+sp; match.
+- match None 2; 1: by auto.
+  auto => />.
+  admit.
+match Some 6; 1: auto => /#.
+auto => />.
+admit.
+qed.
+
+local hoare GWAKE0_inv_send_fin: GWAKE0(NSL).send_fin:
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match; 1: auto; 2..4: auto.
+sp; match.
+- match None 2; 1: by auto.
+  auto => />.
+  admit.
+match Some 4; 1: auto => /#.
+auto => />.
+admit.
+qed.
+
+local hoare GWAKE0_inv_rev_skey: GWAKE0(NSL).rev_skey:
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match; 1..2: auto; 2..3: auto.
+sp; if => //.
+sp; if => //.
+- admit. 
+auto => />.
+admit.
+qed.
+
+local hoare GWAKE0_inv_test: GWAKE0(NSL).test:
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match; 1..2: auto; 2..3: auto.
+sp; if => //.
+sp; if => //.
+- admit. 
+auto => />.
+admit.
+qed.
+
+
 lemma Step1 &m:
     `|Pr[E_GWAKE(GWAKE0(NSL), A).run() @ &m : res] - Pr[E_GWAKE(GWAKE_ideal_aead, A).run() @ &m : res]|
   = 
