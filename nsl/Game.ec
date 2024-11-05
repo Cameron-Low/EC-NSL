@@ -718,23 +718,41 @@ local inductive GWAKE0_inv (sm: (id * int, role * instance_state) fmap) (pskm : 
     (sm.[a, i] = Some (r, Observed tr k)).
 
 local hoare GWAKE0_inv_gen_pskey: GWAKE0(NSL).gen_pskey:
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i).
 proc; inline *.
 if => //.
 auto => />.
+move => &m inv1 inv3 k _ a' i'.
+case: (inv1 a' i'). 
++ move=> sm.
+  by apply GWAKE0_undef.
++ move => r sm.
+  exact (GWAKE0_aborted _ _ _ _ r).
++ move => b na c1 kab sm psk.
+  apply (GWAKE0_ipending _ _ _ _ b na c1 kab) => //.
+  smt(get_setE).
++ move => b na nb c1 c2 kba sm psk.
+  apply (GWAKE0_rpending _ _ _ _ b na nb c1 c2 kba) => //.
+  smt(get_setE).
++ move => r tr k'.
+  exact (GWAKE0_accepted _ _ _ _ r tr k').
+move => r tr k'.
+exact (GWAKE0_observed _ _ _ _ r tr k').
 qed.
     
 local hoare GWAKE0_inv_send_msg1: GWAKE0(NSL).send_msg1:
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
-auto => /> &hr inv ainin abin na0 _ ca0 _ a' i'.
+auto => /> &hr inv ainin abin na _ ca _ a' i'.
 case ((a', i') = (a, i){hr}) => /> => [|neq_ai].
-- admit.
+- apply (GWAKE0_ipending _ _ _ _ b{hr} na ca (oget GWAKEb.psk_map.[(a, b)]{hr})).
+  + by rewrite get_set_sameE.
+  smt(). 
 case: (inv a' i') => [|r'|b' na' c1' kab'|id' nb' na' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
 - apply: GWAKE0_undef; 1: by smt(get_setE).
 - admit.
@@ -745,9 +763,9 @@ admit.
 qed.
     
 local hoare GWAKE0_inv_send_msg2: GWAKE0(NSL).send_msg2:
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
 sp; match.
@@ -760,9 +778,9 @@ admit.
 qed.
 
 local hoare GWAKE0_inv_send_msg3: GWAKE0(NSL).send_msg3:
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
 sp; match; 2..5: auto.
@@ -776,9 +794,9 @@ admit.
 qed.
 
 local hoare GWAKE0_inv_send_fin: GWAKE0(NSL).send_fin:
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
 sp; match; 1: auto; 2..4: auto.
@@ -792,9 +810,9 @@ admit.
 qed.
 
 local hoare GWAKE0_inv_rev_skey: GWAKE0(NSL).rev_skey:
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
 sp; match; 1..2: auto; 2..3: auto.
@@ -806,9 +824,9 @@ admit.
 qed.
 
 local hoare GWAKE0_inv_test: GWAKE0(NSL).test:
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i)
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i).
+    (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
 sp; match; 1..2: auto; 2..3: auto.
@@ -832,22 +850,33 @@ do! congr.
   call (:
        ={psk_map}(GWAKEb, GAEADb)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
-    /\ (forall a i, GWAKE0_inv GWAKEb.state_map GAEADb.psk_map a i){1}
+    /\ (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i){1}
   ).
   - conseq (:
-       ={psk_map}(GWAKEb, GAEADb)
+        ={res}
+    /\  ={psk_map}(GWAKEb, GAEADb)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
        ) GWAKE0_inv_gen_pskey _ => //.
-    proc.
+  - proc.
     by if; auto.
-  - proc; inline.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKEb, GAEADb)
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+       ) GWAKE0_inv_send_msg1 _ => //.
+    proc; inline.
     sp; if=> //.
     + smt().
     match Some {2} 6.
     + auto; smt(get_setE).
     auto=> />.
     smt(get_setE).
-  - proc; inline.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKEb, GAEADb)
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+       ) GWAKE0_inv_send_msg2 _ => //.
+    proc; inline.
     sp; if=> //.
     + smt().
     match Some {2} 5.
@@ -862,31 +891,60 @@ do! congr.
     match Some {2} 6.
     + auto; smt(get_setE).
     auto; smt(get_setE).
-  - proc; inline.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKEb, GAEADb)
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+       ) GWAKE0_inv_send_msg3 _ => //.
+    proc; inline.
     sp; if=> //.
     + smt().
     sp; match; 1..5: smt(); 2..5: by auto.
     move=> sil m1l sir m1r.
     match Some {2} 6.
-    + auto=> />. admit. (* inv for psk in state_map{1] = psk in psk_map{2} *)
+    + auto=> />. 
+      move=> &hr smr sml inv_sm invl ai_in.
+      case: (invl a{m0} i{m0})=> /#.
     sp; match =.
-    + auto=> />. admit. (* inv for psk in state_map{1] = psk in psk_map{2} *)
+    + auto=> />. 
+      move=> &1 &2 smr sml inv_sm invl ai_in.
+      case: (invl a{2} i{2})=> /#.
     + match None {1} 2; auto; smt(get_setE).
     move=> nb.
     match Some {2} 7.
-    + admit. (* inv for psk in state_map{1] = psk in psk_map{2} *)
+    + auto=> /> &1 decl decr smr sml inv_sm invl ai_in ok _.
+      case: (invl a{m0} i{m0})=> /#.
     match Some {1} 6.
     + auto; smt(get_setE).
     auto=> />.
-    admit. (* inv for psk in state_map{1] = psk in psk_map{2} *)
+    move=> &1 &2 + + + sml + invl.
+    case: (invl a{2} i{2}); 1,2,4,5,6: smt().
+    move: sml => + b na c1 kab sml. 
+    rewrite sml => /> psk ^ ? -> //=.
+    move=> + smr inv1.
+    move: (inv1 (a{2}, i{2})).
+    rewrite sml //=.
+    move: smr => + smr.
+    rewrite -smr => />.
+    rewrite psk /get_as_Some //=.
+    admit.
 
   + admit.
 
-  + proc; inline. 
+  + conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKEb, GAEADb)
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+       ) GWAKE0_inv_rev_skey _ => //.
+    proc; inline. 
     sp; if=> //.
     + smt().
     sp; match; 1..5: smt(); 1,2,5: by auto.
-    + admit.
+    + move=> trl kl trr kr.
+      sp ^if & -1 ^if & -1; if.
+      + admit.
+      + admit.
+      admit.
     auto; smt().
 
   + proc; inline. 
@@ -897,7 +955,7 @@ do! congr.
     auto; smt().
   
   + auto=> />.
-    smt(emptyE).
+    admit. (* smt(emptyE). *)
 
 admit.
 qed.
