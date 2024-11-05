@@ -748,18 +748,22 @@ local hoare GWAKE0_inv_send_msg1: GWAKE0(NSL).send_msg1:
     (forall a i, GWAKE0_inv GWAKEb.state_map GWAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
-auto => /> &hr inv ainin abin na _ ca _ a' i'.
-case ((a', i') = (a, i){hr}) => /> => [|neq_ai].
-- apply (GWAKE0_ipending _ _ _ _ b{hr} na ca (oget GWAKEb.psk_map.[(a, b)]{hr})).
-  + by rewrite get_set_sameE.
+auto => /> &m inv ainin abin na _ ca _ a' i'.
+case ((a', i') = (a, i){m}) => /> => [|neq_ai].
++ apply (GWAKE0_ipending _ _ _ _ b{m} na ca (oget GWAKEb.psk_map.[(a, b)]{m})).
+  - by rewrite get_set_sameE.
   smt(). 
-case: (inv a' i') => [|r'|b' na' c1' kab'|id' nb' na' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
-- apply: GWAKE0_undef; 1: by smt(get_setE).
-- admit.
-- admit. 
-- admit.
-- admit.
-admit.
+case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
++ apply: GWAKE0_undef; 1: by smt(get_setE).
++ apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
++ apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+  smt(get_setE).
++ apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+  smt(get_setE).
++ apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+  smt(get_setE).
+apply (GWAKE0_observed _ _ _ _ r' tr' k').
+smt(get_setE).
 qed.
     
 local hoare GWAKE0_inv_send_msg2: GWAKE0(NSL).send_msg2:
@@ -769,9 +773,21 @@ local hoare GWAKE0_inv_send_msg2: GWAKE0(NSL).send_msg2:
 proc; inline *.
 sp; if => //.
 sp; match.
-- match None 2; 1: by auto.
-  auto => />. 
-  admit.
++ match None 2; 1: by auto.
+  auto => /> &m decn st inv bjnin abin a' i'.
+  case ((a', i') = (b, j){m}) => /> => [|neq_ai].
+  - apply (GWAKE0_aborted _ _ _ _ Responder). smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
++ apply: GWAKE0_undef; 1: by smt(get_setE).
++ apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
++ apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+  smt(get_setE).
++ apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+  smt(get_setE).
++ apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+  smt(get_setE).
+apply (GWAKE0_observed _ _ _ _ r' tr' k').
+smt(get_setE).
 match Some 5; 1: auto => /#.
 auto => />.
 admit.
