@@ -754,7 +754,7 @@ case ((a', i') = (a, i){m}) => /> => [|neq_ai].
   - by rewrite get_set_sameE.
   smt(). 
 case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
-+ apply: GWAKE0_undef; 1: by smt(get_setE).
++ apply: GWAKE0_undef. smt(get_setE).
 + apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
 + apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
   smt(get_setE).
@@ -778,7 +778,25 @@ sp; match.
   case ((a', i') = (b, j){m}) => /> => [|neq_ai].
   - apply (GWAKE0_aborted _ _ _ _ Responder). smt(get_setE).
   case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
-+ apply: GWAKE0_undef; 1: by smt(get_setE).
+  - apply: GWAKE0_undef; 1: by smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
+match Some 5; 1: auto => /#.
+auto => /> &m decn st inv bjnin abin n _ cb0 cin a' i'.
+case ((a', i') = (b, j){m}) => [eq_ai|neq_ai].
++ rewrite /get_as_Some //=.
+  apply (GWAKE0_rpending _ _ _ _ a0{m} na{m} n ca{m} cb0 (oget GWAKEb.psk_map.[(a0, b)]{m})).
+  - by rewrite get_setE eq_ai //=. 
+  smt().
+case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
++ apply GWAKE0_undef. smt(get_setE).
 + apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
 + apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
   smt(get_setE).
@@ -788,9 +806,6 @@ sp; match.
   smt(get_setE).
 apply (GWAKE0_observed _ _ _ _ r' tr' k').
 smt(get_setE).
-match Some 5; 1: auto => /#.
-auto => />.
-admit.
 qed.
 
 local hoare GWAKE0_inv_send_msg3: GWAKE0(NSL).send_msg3:
@@ -802,11 +817,37 @@ sp; if => //.
 sp; match; 2..5: auto.
 sp; match.
 - match None 2; 1: by auto.
-  auto => />.
-  admit.
+  auto => /> &m decn st inv aiin a' i'.
+  case ((a', i') = (a, i){m}) => /> => [|neq_ai].
+  - apply (GWAKE0_aborted _ _ _ _ Initiator). smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply: GWAKE0_undef; 1: by smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
 match Some 6; 1: auto => /#.
-auto => />.
-admit.
+auto => /> &m decn st inv aiin n _ ca0 cin a' i'.
+case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
++ rewrite /get_as_Some //=.
+  apply (GWAKE0_accepted _ _ _ _ Initiator (m1{m}, m2{m}, ca0) (prf (na{m}, nb{m}) (a{m}, b{m}))).
+  - by rewrite get_setE eq_ai //=. 
+case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
++ apply GWAKE0_undef. smt(get_setE).
++ apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
++ apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+  smt(get_setE).
++ apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+  smt(get_setE).
++ apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+  smt(get_setE).
+apply (GWAKE0_observed _ _ _ _ r' tr' k').
+smt(get_setE).
 qed.
 
 local hoare GWAKE0_inv_send_fin: GWAKE0(NSL).send_fin:
@@ -818,11 +859,37 @@ sp; if => //.
 sp; match; 1: auto; 2..4: auto.
 sp; match.
 - match None 2; 1: by auto.
-  auto => />.
-  admit.
+  auto => /> &m decn st inv bjin a' i'.
+  case ((a', i') = (b, j){m}) => /> => [|neq_ai].
+  - apply (GWAKE0_aborted _ _ _ _ Responder). smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply: GWAKE0_undef; 1: by smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
 match Some 4; 1: auto => /#.
-auto => />.
-admit.
+auto => /> &m decn st inv bjin a' i'.
+case ((a', i') = (b, j){m}) => [eq_ai|neq_ai].
++ rewrite /get_as_Some //=.
+  apply (GWAKE0_accepted _ _ _ _ Responder (m1{m}, m2{m}, m3{m}) (prf (na{m}, nb{m}) (a{m}, b{m}))).
+  - by rewrite get_setE eq_ai //=. 
+case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
++ apply GWAKE0_undef. smt(get_setE).
++ apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
++ apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+  smt(get_setE).
++ apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+  smt(get_setE).
++ apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+  smt(get_setE).
+apply (GWAKE0_observed _ _ _ _ r' tr' k').
+smt(get_setE).  
 qed.
 
 local hoare GWAKE0_inv_rev_skey: GWAKE0(NSL).rev_skey:
@@ -834,9 +901,98 @@ sp; if => //.
 sp; match; 1..2: auto; 2..3: auto.
 sp; if => //.
 sp; if => //.
-- admit. 
-auto => />.
-admit.
+sp; match. 
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply GWAKE0_undef. smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  + apply GWAKE0_undef. smt(get_setE).
+  + apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  + apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  + apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  + apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply GWAKE0_undef. smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} p_k{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply GWAKE0_undef. smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply GWAKE0_undef. smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
+auto => /> &m st inv aiin card1 card0 a' i'.
+case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
++ rewrite /get_as_Some //=.
+  apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+  - by rewrite get_setE eq_ai //=. 
+case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
++ apply GWAKE0_undef. smt(get_setE).
++ apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
++ apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+  smt(get_setE).
++ apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+  smt(get_setE).
++ apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+  smt(get_setE).
+apply (GWAKE0_observed _ _ _ _ r' tr' k').
+smt(get_setE).
 qed.
 
 local hoare GWAKE0_inv_test: GWAKE0(NSL).test:
@@ -848,9 +1004,98 @@ sp; if => //.
 sp; match; 1..2: auto; 2..3: auto.
 sp; if => //.
 sp; if => //.
-- admit. 
-auto => />.
-admit.
+sp; match. 
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply GWAKE0_undef. smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  + apply GWAKE0_undef. smt(get_setE).
+  + apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  + apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  + apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  + apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply GWAKE0_undef. smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} p_k{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply GWAKE0_undef. smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
+  - apply GWAKE0_undef. smt(get_setE).
+  - apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
+  - apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+    smt(get_setE).
+  - apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+    smt(get_setE).
+  - apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+    smt(get_setE).
+  apply (GWAKE0_observed _ _ _ _ r' tr' k').
+  smt(get_setE).
+auto => /> &m st inv aiin card1 card0 a' i'.
+case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
++ rewrite /get_as_Some //=.
+  apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+  - by rewrite get_setE eq_ai //=. 
+case: (inv a' i') => [|r'|b' na' c1' kab'|b' na' nb' c1' c2' kba'|r' tr' k'|r' tr' k'] st_ai => [| |psk_ab|psk_ba| |].
++ apply GWAKE0_undef. smt(get_setE).
++ apply: (GWAKE0_aborted _ _ _ _ r'). smt(get_setE).
++ apply (GWAKE0_ipending _ _ _ _ b' na' c1' kab') => //.
+  smt(get_setE).
++ apply (GWAKE0_rpending _ _ _ _ b' na' nb' c1' c2' kba') => //.
+  smt(get_setE).
++ apply (GWAKE0_accepted _ _ _ _ r' tr' k').
+  smt(get_setE).
+apply (GWAKE0_observed _ _ _ _ r' tr' k').
+smt(get_setE).
 qed.
 
 
