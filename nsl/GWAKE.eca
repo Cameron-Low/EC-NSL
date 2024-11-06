@@ -162,6 +162,7 @@ module GWAKEb (P : AKE_Scheme) = {
         | Some val => {
           (m3, key) <- val;
           state_map.[(a, i)] <- (Initiator, Accepted (m1, m2, m3) key);
+          r <- Some m3;
         }
         end;
       }

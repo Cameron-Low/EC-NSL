@@ -1118,8 +1118,9 @@ do! congr.
     /\  ={psk_map}(GWAKEb, GAEADb)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
        ) GWAKE0_inv_gen_pskey _ => //.
-  - proc.
+    proc.
     by if; auto.
+
   - conseq (:
         ={res}
     /\  ={psk_map}(GWAKEb, GAEADb)
@@ -1132,6 +1133,7 @@ do! congr.
     + auto; smt(get_setE).
     auto=> />.
     smt(get_setE).
+
   - conseq (:
         ={res}
     /\  ={psk_map}(GWAKEb, GAEADb)
@@ -1152,6 +1154,7 @@ do! congr.
     match Some {2} 6.
     + auto; smt(get_setE).
     auto; smt(get_setE).
+
   - conseq (:
         ={res}
     /\  ={psk_map}(GWAKEb, GAEADb)
@@ -1180,19 +1183,11 @@ do! congr.
     auto=> />.
     move=> &1 &2 + + + sml + invl.
     case: (invl a{2} i{2}); 1,2,4,5,6: smt().
-    move: sml => + b na c1 kab sml. 
-    rewrite sml => /> psk ^ ? -> //=.
-    move=> + smr inv1.
-    move: (inv1 (a{2}, i{2})).
-    rewrite sml //=.
-    move: smr => + smr.
-    rewrite -smr => />.
-    rewrite psk /get_as_Some //=.
-    admit.
+    smt(get_setE).
 
-  + admit.
+  - admit.
 
-  + conseq (:
+  - conseq (:
         ={res}
     /\  ={psk_map}(GWAKEb, GAEADb)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
@@ -1201,22 +1196,21 @@ do! congr.
     sp; if=> //.
     + smt().
     sp; match; 1..5: smt(); 1,2,5: by auto.
-    + move=> trl kl trr kr.
-      sp ^if & -1 ^if & -1; if.
-      + admit.
-      + admit.
-      admit.
-    auto; smt().
+    + admit.
+    by auto; smt().
 
-  + proc; inline. 
+  - proc; inline. 
     sp; if=> //.
     + smt().
     sp; match; 1..5: smt(); 1,2,5: by auto.
     + admit.
-    auto; smt().
+    by auto; smt().
   
-  + auto=> />.
-    admit. (* smt(emptyE). *)
+  auto=> />.
+  split; 1: smt(emptyE).
+  move=> a i. 
+  apply GWAKE0_undef.
+  smt(emptyE).
 
 admit.
 qed.
