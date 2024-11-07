@@ -1189,5 +1189,71 @@ do! congr.
   apply GWAKE0_undef.
   smt(emptyE).
 
-admit.
+byequiv => //.
+proc; inline*.
+wp.
+call (:
+       ={psk_map}(GWAKE_ideal_aead, GAEADb)
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKE_ideal_aead.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+  ).
+
+  - proc.
+    by if; auto.
+
+  - proc; inline.
+    sp; if=> //.
+    + smt().
+    rcondt{2} 6.
+    + auto => />.
+    auto=> />.
+    + smt(get_setE).
+
+  - proc; inline.
+    sp; if=> //.
+    + smt().
+    rcondt {2} 5.
+    + auto.
+    sp; match =.
+    + auto=> />.
+      admit. (* relation of GAED1.ctxts and GWAKE_ideal_aead.dec_map *)
+    + auto=> />.
+      smt(get_setE).
+    move=> na.
+    rcondt {2} 6.
+    + auto; smt(get_setE).
+    auto; smt(get_setE).
+
+  + proc; inline.
+    sp; if=> //.
+    + smt().
+    sp; match; 1..5: smt(); 2..5: by auto.
+    move=> sil m1l sir m1r.
+    rcondt {2} 6.
+    + auto=> />.
+      move=> &hr smr sml inv_sm ai_in.
+      admit. (* I need invariant for ideal side *)
+    sp; match =.
+    + auto=> />. 
+      move=> &1 &2 smr sml inv_sm ai_in.
+      admit. (* same here *)
+    + auto; smt(get_setE).
+    move=> nb.
+    rcondt {2} 7.
+    + auto=> /> &1 decl decr smr sml inv_sm ai_in ok _.
+      admit. (* Same here *)
+    auto=> />.
+    move=> &1 &2 + + + sml + invl.
+    admit. (* and here *)
+
+  + admit.
+
+  + admit.
+
+  + admit.
+
+auto=> />.
+(*split; 1: smt(emptyE).
+move=> a i. 
+apply GWAKE0_undef.*)
+smt(emptyE).
 qed.
