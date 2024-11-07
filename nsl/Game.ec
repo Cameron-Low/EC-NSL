@@ -186,7 +186,7 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
         if (st is RPending s m1 m2) {
           (a, psk, na, nb, ca, cb) <- s;
           ok <@ O.dec((a, b), msg3_data a b ca cb, m3);
-          if (ok <> None) {
+          if (ok is Some nok) {
             skey <- prf (na, nb) (a, b);
             state_map.[(b, j)] <- (Responder, Accepted (m1, m2, m3) skey);
             mo <- Some ();
@@ -1024,7 +1024,7 @@ do! congr.
     sp; match; 1..5: smt(); 2..5: by auto.
     move=> sil m1l sir m1r.
     match Some {2} 6.
-    + auto=> />. 
+    + auto=> />.
       move=> &hr smr sml inv_sm invl ai_in.
       case: (invl a{m0} i{m0})=> /#.
     sp; match =.
@@ -1043,7 +1043,32 @@ do! congr.
     case: (invl a{2} i{2}); 1,2,4,5,6: smt().
     smt(get_setE).
 
-  - admit.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKEb, GAEADb)
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+       ) GWAKE0_inv_send_fin _ => //.
+    proc; inline.
+    sp; if=> //.
+    + smt().
+    sp; match; 1..5: smt(); 1,3,4,5: by auto.
+    move=> sil m1l m2l sir m1r m2r.
+    match Some {2} 6.
+    + auto=> />. 
+      move=> &hr smr sml inv_sm invl bj_in.
+      case: (invl b{m0} j{m0})=> /#.
+    sp; match =.
+    + auto=> />. 
+      move=> &1 &2 smr sml inv_sm invl bj_in.
+      case: (invl b{2} j{2})=> /#.
+    + match None {1} 2; auto; smt(get_setE).
+    move=> nb.
+    match Some {1} 4.
+    + auto; smt(get_setE).
+    auto=> />.
+    move=> &1 &2 + + + sml + invl.
+    case: (invl b{2} j{2}); 1,2,3,5,6: smt().
+    smt(get_setE).
 
   - conseq (:
         ={res}
