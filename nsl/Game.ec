@@ -729,23 +729,19 @@ move=> neq
 | b na nb c1 c2 kba
 | r tr k
 | r tr k
-].
-+ move=> smbj.
-  apply GWAKE0_undef.
+] => smbj.
++ apply GWAKE0_undef.
   by rewrite get_set_neqE.
-+ move=> smbj.
-  apply (GWAKE0_aborted _ _ _ _ r).
++ apply (GWAKE0_aborted _ _ _ _ r).
   by rewrite get_set_neqE.
-+ move=> smbj pskcb.
++ move=> pskcb.
   apply (GWAKE0_ipending _ _ _ _ b na c1 kab) => //.
   by rewrite get_set_neqE.
-+ move=> smbj pskcb.
++ move=> pskcb.
   apply (GWAKE0_rpending _ _ _ _ b na nb c1 c2 kba)=> //.
   by rewrite get_set_neqE.
-+ move=> smbj.
-  apply (GWAKE0_accepted _ _ _ _ r tr k)=> //.
++ apply (GWAKE0_accepted _ _ _ _ r tr k)=> //.
   by rewrite get_set_neqE.
-move=> smbj.
 apply (GWAKE0_observed _ _ _ _ r tr k)=> //.
 by rewrite get_set_neqE.
 qed.
