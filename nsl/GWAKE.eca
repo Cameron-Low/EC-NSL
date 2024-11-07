@@ -56,10 +56,9 @@ fdom (
 ).
 
 op get_observed_partners ai  (fmap : (id * int, role * instance_state) fmap) =
-  let (r, s) = oget fmap.[ai] in
   filter
     (fun bj => oapp (is_observed \o snd) false fmap.[bj])
-    (get_partners ai (get_trace s) r fmap).
+    (get_partners ai (get_trace (oget fmap.[ai]).`2) (oget fmap.[ai]).`1 fmap).
 
 
 (********************************************************************************)

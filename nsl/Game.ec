@@ -215,7 +215,7 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
             if (card ps <> 0) {
               (* If a partner has revealed something, we must use the same key *)
               p <- pick ps;
-              (p_role, p_st) <- oget GWAKEb.state_map.[p];
+              (p_role, p_st) <- oget state_map.[p];
               if (p_st is Observed _ p_k) {
                 k <- p_k;
               }
@@ -359,7 +359,7 @@ module GWAKE_ideal_aead = {
           if (card ps <> 0) {
             (* If a partner has revealed something, we must use the same key *)
             p <- pick ps;
-            (p_role, p_st) <- oget GWAKEb.state_map.[p];
+            (p_role, p_st) <- oget state_map.[p];
             if (p_st is Observed _ p_k) {
               k <- p_k;
             }
@@ -701,6 +701,20 @@ match s with
 | Aborted => s
 end.
 
+local op clear_all (s : instance_state) =
+match s with
+| IPending _ _ => 
+  IPending witness witness 
+| RPending _ _ _ => 
+  RPending witness witness witness
+| Accepted _ _ =>
+  Accepted witness witness
+| Observed _ _ =>
+  Observed witness witness
+| Aborted =>
+  Aborted
+end.
+
 local inductive GWAKE0_inv (sm: (id * int, role * instance_state) fmap) (pskm : (id * id, pskey) fmap) (a: id) (i: int) =
 | GWAKE0_undef of
     (sm.[a, i] = None)
@@ -729,19 +743,23 @@ move=> neq
 | b na nb c1 c2 kba
 | r tr k
 | r tr k
-] => smbj.
-+ apply GWAKE0_undef.
+].
++ move=> smbj.
+  apply GWAKE0_undef.
   by rewrite get_set_neqE.
-+ apply (GWAKE0_aborted _ _ _ _ r).
++ move=> smbj.
+  apply (GWAKE0_aborted _ _ _ _ r).
   by rewrite get_set_neqE.
-+ move=> pskcb.
++ move=> smbj pskcb.
   apply (GWAKE0_ipending _ _ _ _ b na c1 kab) => //.
   by rewrite get_set_neqE.
-+ move=> pskcb.
++ move=> smbj pskcb.
   apply (GWAKE0_rpending _ _ _ _ b na nb c1 c2 kba)=> //.
   by rewrite get_set_neqE.
-+ apply (GWAKE0_accepted _ _ _ _ r tr k)=> //.
++ move=> smbj.
+  apply (GWAKE0_accepted _ _ _ _ r tr k)=> //.
   by rewrite get_set_neqE.
+move=> smbj.
 apply (GWAKE0_observed _ _ _ _ r tr k)=> //.
 by rewrite get_set_neqE.
 qed.
@@ -956,6 +974,35 @@ apply GWAKE0_inv_neq => //.
 exact inv.
 qed.
 
+local lemma eq_partners h tr r sml smr: 
+  (forall h, omap (fun (v: role * instance_state) => let (r, s) = v in (r, clear_psk s)) sml.[h] = smr.[h]) =>
+get_partners h tr r sml = get_partners h tr r smr.
+proof.
+move=> eqsm.
+rewrite /get_partners.
+congr.
+apply fmap_eqP => h'.
+rewrite !filterE -(eqsm h') /=. 
+case: (sml.[h'])=> //=.
+by move=> [r' []] // [] /= /#.
+qed.
+
+local lemma eq_obs_partners h sml smr: 
+  (forall h, omap (fun (v: role * instance_state) => let (r, s) = v in (r, clear_psk s)) sml.[h] = smr.[h]) =>
+get_observed_partners h sml = get_observed_partners h smr.
+proof.
+move=> eqsm.
+rewrite /get_observed_partners.
+congr.
++ rewrite fun_ext => bj.
+  rewrite -(eqsm bj) //=.
+  case: (sml.[bj])=> //.
+  by move=> [r' []] // [].
+rewrite -(eq_partners _ _ _ sml smr eqsm). 
+rewrite -(eqsm h) /s /r //=.
+case: (sml.[h])=> //.
+by move=> [r' []] // [].
+qed.
 
 lemma Step1 &m:
     `|Pr[E_GWAKE(GWAKE0(NSL), A).run() @ &m : res] - Pr[E_GWAKE(GWAKE_ideal_aead, A).run() @ &m : res]|
@@ -1079,14 +1126,61 @@ do! congr.
     sp; if=> //.
     + smt().
     sp; match; 1..5: smt(); 1,2,5: by auto.
-    + admit.
+    + move=> tr k tr' k'.
+      sp ^if & -1 ^if & -1; if=> //.
+      + smt(eq_partners).
+      sp ^if & -1 ^if & -1; if.
+      + move=> /> &1 &2 smr sml eqsm.
+        by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Red_AEAD.WAKE_O.state_map{2}).
+      + seq 1 1 : (={ps, p} /\ #pre).
+        + auto=> /> &1 &2 smr sml eqsm.
+          by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Red_AEAD.WAKE_O.state_map{2}).
+        wp 2 2.
+        conseq (: _ ==> ={k, role} /\ tr = tr').
+        + move=> /> &1 &2 _ + + eqsm invl a_in _ _.
+          rewrite -(eqsm (a, i){2}).
+          by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
+        auto=> /> &1 &2 + + + eqsm invl a_in _ _.
+        rewrite -(eqsm (a, i){2}) -(eqsm p{2}).
+        case: (GWAKEb.state_map{1}.[(a, i){2}])=> />.
+        + by case: (GWAKEb.state_map{1}.[p{2}])=> /#.
+        by case: (GWAKEb.state_map{1}.[p{2}])=> /#.
+      auto=> /> &1 &2 + + eqsm invl a_in _ _.
+      rewrite -(eqsm (a, i){2}).
+      by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
     by auto; smt().
 
-  - proc; inline. 
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKEb, GAEADb)
+    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+       ) GWAKE0_inv_test _ => //.
+    proc; inline. 
     sp; if=> //.
     + smt().
     sp; match; 1..5: smt(); 1,2,5: by auto.
-    + admit.
+    + move=> tr k tr' k'.
+      sp ^if & -1 ^if & -1; if=> //.
+      + smt(eq_partners).
+      sp ^if & -1 ^if & -1; if.
+      + move=> /> &1 &2 smr sml eqsm.
+        by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Red_AEAD.WAKE_O.state_map{2}).
+      + seq 1 1 : (={ps, p} /\ #pre).
+        + auto=> /> &1 &2 smr sml eqsm.
+          by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Red_AEAD.WAKE_O.state_map{2}).
+        wp 2 2.
+        conseq (: _ ==> ={k, role} /\ tr = tr').
+        + move=> /> &1 &2 _ + + eqsm invl a_in _ _.
+          rewrite -(eqsm (a, i){2}).
+          by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
+        auto=> /> &1 &2 + + + eqsm invl a_in _ _.
+        rewrite -(eqsm (a, i){2}) -(eqsm p{2}).
+        case: (GWAKEb.state_map{1}.[(a, i){2}])=> />.
+        + by case: (GWAKEb.state_map{1}.[p{2}])=> /#.
+        by case: (GWAKEb.state_map{1}.[p{2}])=> /#.
+      auto=> /> &1 &2 + + eqsm invl a_in _ _.
+      rewrite -(eqsm (a, i){2}).
+      by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
     by auto; smt().
   
   auto=> />.
