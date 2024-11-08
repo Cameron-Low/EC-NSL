@@ -330,7 +330,7 @@ module GWAKE_ideal_aead = {
       (role, st) <- oget state_map.[(b, j)];
       if (st is RPending s m1 m2) {
         (a, psk, na, nb, ca, cb) <- s;
-        if (dec_map.[(oget psk_map.[(a, b)], msg3_data a b ca cb, m3)] <> None) {
+        if (dec_map.[(oget psk_map.[(a, b)], msg3_data a b ca cb, m3)] is Some nok) {
           skey <- prf (na, nb) (a, b);
           state_map.[(b, j)] <- (Responder, Accepted (m1, m2, m3) skey);
           mo <- Some ();
@@ -974,6 +974,209 @@ apply GWAKE0_inv_neq => //.
 exact inv.
 qed.
 
+local hoare GWAKE_ideal_aead_inv_gen_pskey: GWAKE_ideal_aead.gen_pskey:
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i).
+proc; inline *.
+if => //.
+auto => />.
+move => &m inv1 inv2 k _ a' i'.
+case: (inv1 a' i'). 
++ move=> sm.
+  by apply GWAKE0_undef.
++ move => r sm.
+  exact (GWAKE0_aborted _ _ _ _ r).
++ move => b na c1 kab sm psk.
+  apply (GWAKE0_ipending _ _ _ _ b na c1 kab) => //.
+  smt(get_setE).
++ move => b na nb c1 c2 kba sm psk.
+  apply (GWAKE0_rpending _ _ _ _ b na nb c1 c2 kba) => //.
+  smt(get_setE).
++ move => r tr k'.
+  exact (GWAKE0_accepted _ _ _ _ r tr k').
+move => r tr k'.
+exact (GWAKE0_observed _ _ _ _ r tr k').
+qed.
+    
+local hoare GWAKE_ideal_aead_inv_send_msg1: GWAKE_ideal_aead.send_msg1:
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i).
+proc; inline *.
+sp; if => //.
+auto => /> &m inv ainin abin na _ ca _ a' i'.
+case ((a', i') = (a, i){m}) => /> => [|neq_ai].
++ apply (GWAKE0_ipending _ _ _ _ b{m} na ca (oget GWAKE_ideal_aead.psk_map.[(a, b)]{m})).
+  - rewrite get_set_sameE. admit. (* if in psk map then witness? *)
+  smt().
+apply GWAKE0_inv_neq => //.
+exact inv.
+qed.
+    
+local hoare GWAKE_ideal_aead_inv_send_msg2: GWAKE_ideal_aead.send_msg2:
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match.
+- auto => /> &m decn st inv bjnin abin a' i'.
+  case ((a', i') = (b, j){m}) => [eq_ai|neq_ai].
+  + apply (GWAKE0_aborted _ _ _ _ Responder).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
+auto => /> &m decn st inv bjnin abin n _ cb0 cin a' i'.
+case ((a', i') = (b, j){m}) => [eq_ai|neq_ai].
++ apply (GWAKE0_rpending _ _ _ _ a{m} na{m} n ca{m} cb0 (oget GWAKE_ideal_aead.psk_map.[(a, b)]{m})).
+  - rewrite get_setE eq_ai //=. admit. (* if in psk map then witness? *)
+  smt().
+apply GWAKE0_inv_neq => //.
+exact inv.
+qed.
+
+local hoare GWAKE_ideal_aead_inv_send_msg3: GWAKE_ideal_aead.send_msg3:
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match; 2..5: auto.
+sp; match.
+- auto => /> &m decn st inv aiin a' i'.
+  case ((a', i') = (a, i){m}) => /> => [|neq_ai].
+  - apply (GWAKE0_aborted _ _ _ _ Initiator). smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
+auto => /> &m decn st inv aiin n _ ca0 cin a' i'.
+case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
++ apply (GWAKE0_accepted _ _ _ _ Initiator (m1{m}, m2{m}, ca0) (prf (na{m}, nb{m}) (a{m}, b{m}))).
+  - by rewrite get_setE eq_ai //=. 
+apply GWAKE0_inv_neq => //.
+exact inv.
+qed.
+
+local hoare GWAKE_ideal_aead_inv_send_fin: GWAKE_ideal_aead.send_fin:
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match; 1: auto; 2..4: auto.
+sp; match.
+- auto => /> &m decn st inv bjin a' i'.
+  case ((a', i') = (b, j){m}) => /> => [|neq_ai].
+  - apply (GWAKE0_aborted _ _ _ _ Responder). smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
+auto => /> &m decn st inv bjin a' i'.
+case ((a', i') = (b, j){m}) => [eq_ai|neq_ai].
++ rewrite /get_as_Some //=.
+  apply (GWAKE0_accepted _ _ _ _ Responder (m1{m}, m2{m}, m3{m}) (prf (na{m}, nb{m}) (a{m}, b{m}))).
+  - by rewrite get_setE eq_ai //=. 
+apply GWAKE0_inv_neq => //.
+exact inv.
+qed.
+
+local hoare GWAKE_ideal_aead_inv_rev_skey: GWAKE_ideal_aead.rev_skey:
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match; 1..2: auto; 2..3: auto.
+sp; if => //.
+sp; if => //.
+sp; match. 
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} p_k{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
+auto => /> &m st inv aiin card1 card0 a' i'.
+case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
++ rewrite /get_as_Some //=.
+  apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+  - by rewrite get_setE eq_ai //=. 
+apply GWAKE0_inv_neq => //.
+exact inv.
+qed.
+
+local hoare GWAKE_ideal_aead_inv_test: GWAKE_ideal_aead.test:
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i)
+==> 
+    (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i).
+proc; inline *.
+sp; if => //.
+sp; match; 1..2: auto; 2..3: auto.
+sp; if => //.
+sp; if => //.
+sp; match. 
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} p_k{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
++ auto => /> &m stp ps st inv aiin card1 card0 a' i'.
+  case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
+  - apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+    smt(get_setE).
+  apply GWAKE0_inv_neq => //.
+  exact inv.
+auto => /> &m st inv aiin card1 card0 a' i'.
+case ((a', i') = (a, i){m}) => [eq_ai|neq_ai].
++ rewrite /get_as_Some //=.
+  apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
+  - by rewrite get_setE eq_ai //=. 
+apply GWAKE0_inv_neq => //.
+exact inv.
+qed.
+
 local lemma eq_partners h tr r sml smr: 
   (forall h, omap (fun (v: role * instance_state) => let (r, s) = v in (r, clear_psk s)) sml.[h] = smr.[h]) =>
 get_partners h tr r sml = get_partners h tr r smr.
@@ -1194,66 +1397,130 @@ proc; inline*.
 wp.
 call (:
        ={psk_map}(GWAKE_ideal_aead, GAEADb)
-    /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKE_ideal_aead.state_map.[h]{1} = Red_AEAD.WAKE_O.state_map.[h]{2})
+    /\ ={state_map}(GWAKE_ideal_aead, Red_AEAD.WAKE_O)
+    /\ (forall a i, GWAKE0_inv GWAKE_ideal_aead.state_map GWAKE_ideal_aead.psk_map a i){1}
   ).
 
-  - proc.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKE_ideal_aead, GAEADb)
+    /\ ={state_map}(GWAKE_ideal_aead, Red_AEAD.WAKE_O)
+    ) GWAKE_ideal_aead_inv_gen_pskey => //.
+    proc.
     by if; auto.
 
-  - proc; inline.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKE_ideal_aead, GAEADb)
+    /\ ={state_map}(GWAKE_ideal_aead, Red_AEAD.WAKE_O)
+    ) GWAKE_ideal_aead_inv_send_msg1 => //.
+    proc; inline.
     sp; if=> //.
-    + smt().
     rcondt{2} 6.
     + auto => />.
     auto=> />.
-    + smt(get_setE).
 
-  - proc; inline.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKE_ideal_aead, GAEADb)
+    /\ ={state_map}(GWAKE_ideal_aead, Red_AEAD.WAKE_O)
+    ) GWAKE_ideal_aead_inv_send_msg2 => //.
+    proc; inline.
     sp; if=> //.
-    + smt().
     rcondt {2} 5.
     + auto.
     sp; match =.
     + auto=> />.
       admit. (* relation of GAED1.ctxts and GWAKE_ideal_aead.dec_map *)
     + auto=> />.
-      smt(get_setE).
     move=> na.
     rcondt {2} 6.
     + auto; smt(get_setE).
     auto; smt(get_setE).
 
-  + proc; inline.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKE_ideal_aead, GAEADb)
+    /\ ={state_map}(GWAKE_ideal_aead, Red_AEAD.WAKE_O)
+    ) GWAKE_ideal_aead_inv_send_msg3 => //.
+    proc; inline.
     sp; if=> //.
-    + smt().
     sp; match; 1..5: smt(); 2..5: by auto.
     move=> sil m1l sir m1r.
     rcondt {2} 6.
     + auto=> />.
-      move=> &hr smr sml inv_sm ai_in.
-      admit. (* I need invariant for ideal side *)
+      move=> &hr smr sml invl ai_in.
+      case: (invl a{m0} i{m0})=> /#.
     sp; match =.
     + auto=> />. 
-      move=> &1 &2 smr sml inv_sm ai_in.
-      admit. (* same here *)
+      move=> &1 &2 smr sml invl ai_in.
+      case: (invl a{2} i{2}); 1,2,4,5,6: smt(). 
+      move => /> b0 na0 c1 kab st skab.
+      admit. (* relation of GAED1.ctxts and GWAKE_ideal_aead.dec_map *)
     + auto; smt(get_setE).
     move=> nb.
     rcondt {2} 7.
-    + auto=> /> &1 decl decr smr sml inv_sm ai_in ok _.
-      admit. (* Same here *)
+    + auto=> /> &1 decl decr smr sml invl ai_in ok _.
+      case: (invl a{m0} i{m0})=> /#.
     auto=> />.
-    move=> &1 &2 + + + sml + invl.
-    admit. (* and here *)
+    move=> &1 &2 + + + sml invl.
+    case: (invl a{2} i{2}); 1,2,4,5,6: smt().
+    smt(get_setE).
 
-  + admit.
+  - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKE_ideal_aead, GAEADb)
+    /\ ={state_map}(GWAKE_ideal_aead, Red_AEAD.WAKE_O)
+    ) GWAKE_ideal_aead_inv_send_fin => //.
+    proc; inline.
+    sp; if=> //.
+    sp; match; 1..5: smt(); 1,3,4,5: by auto.
+    move=> sil m1l m2l sir m1r m2r.
+    rcondt {2} 6.
+    + auto=> />.
+      move=> &hr smr sml invl bj_in.
+      case: (invl b{m0} j{m0})=> /#.
+    sp; match =.
+    + auto=> />. 
+      move=> &1 &2 smr sml invl bj_in.
+      case: (invl b{2} j{2}); 1,2,3,5,6: smt(). 
+      move => /> b0 nb0 na0 c1 c2 kab st skab.
+      admit. (* relation of GAED1.ctxts and GWAKE_ideal_aead.dec_map *)
+    + auto; smt(get_setE).
+    move=> nok.
+    auto=> />.
+    move=> &1 &2 + + + sml invl.
+    case: (invl b{2} j{2}); 1,2,4,5,6: smt().
+    smt(get_setE).
 
-  + admit.
+ - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKE_ideal_aead, GAEADb)
+    /\  ={state_map}(GWAKE_ideal_aead, Red_AEAD.WAKE_O)
+    ) GWAKE_ideal_aead_inv_rev_skey _ => //.
+    proc; inline. 
+    sp; if=> //.
+    sp; match; 1..5: smt(); 1,2,5: by auto.
+    + move=> tr k tr' k'. 
+      auto; smt().
+    move=> tr k tr' k'.  
+    auto; smt().
 
-  + admit.
+ - conseq (:
+        ={res}
+    /\  ={psk_map}(GWAKE_ideal_aead, GAEADb)
+    /\  ={state_map}(GWAKE_ideal_aead, Red_AEAD.WAKE_O)
+    ) GWAKE_ideal_aead_inv_test _ => //.
+    proc; inline. 
+    sp; if=> //.
+    sp; match; 1..5: smt(); 1,2,5: by auto.
+    + move=> tr k tr' k'. 
+      auto; smt().
+    move=> tr k tr' k'.  
+    auto; smt().
 
 auto=> />.
-(*split; 1: smt(emptyE).
 move=> a i. 
-apply GWAKE0_undef.*)
+apply GWAKE0_undef.
 smt(emptyE).
 qed.
