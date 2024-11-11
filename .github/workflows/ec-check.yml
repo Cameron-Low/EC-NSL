@@ -6,18 +6,36 @@ on:
       - main
 
 env:
-  OPAMROOT: /home/ecbox/.opam
+  OPAMROOT: /home/charlie/.opam
+  OPAMYES: true
   OPAMJOBS: 2
+  ECRJOBS: 1
 
 jobs:
   ec:
     name: Easycrypt Proof Checking
     runs-on: ubuntu-20.04
     container:
-      image: ghcr.io/cameron-low/ecbox:2024.09
+      image: ghcr.io/easycrypt/ec-build-box
     strategy:
       fail-fast: false
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      name: Checkout EasyCrypt
+      with:
+        repository: EasyCrypt/easycrypt
+        ref: refs/heads/main
+        path: easycrypt
+    - name: Update OPAM & EasyCrypt dependencies
+      run: |
+        opam update
+        opam pin add -n easycrypt easycrypt
+        opam install --deps-only easycrypt
+    - name: Compile & Install EasyCrypt
+      run: opam install easycrypt
+    - name: Detect SMT provers
+      run: |
+        opam exec -- easycrypt why3config -why3 ~/.why3.conf
     - name: Compile Project
       run: opam exec -- make check

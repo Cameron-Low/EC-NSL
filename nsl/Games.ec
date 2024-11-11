@@ -181,6 +181,32 @@ module Game3 = Game2 with {
     ^if.^match#IPending.^match#Some.^caf<$ + (forall pk ad, (pk, ad, ca) \notin dec_map)
   ]
 }.
+
+(* Move the nonces *)
+module Game3 = Game2 with {
+  var skey_map : (ctxt, nonce * nonce) fmap
+  
+  proc init_mem [
+    -1 + { skey_map <- empty; }
+  ]
+
+  proc send_msg1 [
+    ^if.^na<$ ~ { na <- witness; }
+  ]
+
+  proc send_msg2 [
+    ^if^match#Some.^nb<$ ~ { nb <- witness; }
+  ]
+
+  proc send_msg3 [
+    ^if.^match#IPending.^match#Some.^ok<$ ~ { ok <- witness; },
+    ^if.^match#IPending.^match#Some.^if.^skey<- - { (na, nb) <$ dnonce `*` dnonce; skey_map.[caf] <- (na, nb); }
+  ]
+
+  proc send_fin [
+    ^if.^match#RPending.^match#Some.^skey<- ~ { skey <- prf (oget skey_map.[m3]) (a, b); }
+  ]
+}.
 *)
 
 module Game2 = {
