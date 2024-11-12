@@ -133,16 +133,20 @@ module Game1 = {
   proc test = rev_skey
 }.
 
-(*
 (* Decmap instead of real enc/dec *)
 module Game2 = Game1 with {
   var dec_map: ((id * id) * msg_data * ctxt, nonce) fmap
+  var bad : bool
   
-  proc init_mem [-1 + { dec_map <- empty; }]
+  proc init_mem [
+    -1 + { dec_map <- empty; },
+    -1 + { bad <- false; }
+  ]
   
   proc send_msg1 [
     ^if.^ca<$ ~ {
       ca <$ dctxt;
+      bad <- bad \/ exists pk ad, (pk, ad, ca) \in dec_map;
       dec_map.[((a,b), msg1_data a b, ca)] <- na;
      }
   ]
@@ -151,6 +155,7 @@ module Game2 = Game1 with {
     ^if.^match ~ (dec_map.[((a, b), msg1_data a b, ca)]),
     ^if.^match#Some.^cb<$ ~ {
       cb <$ dctxt;
+      bad <- bad \/ exists pk ad, (pk, ad, cb) \in dec_map;
       dec_map.[((a,b), msg2_data a b ca, cb)] <- nb;
      }
   ]
@@ -159,6 +164,7 @@ module Game2 = Game1 with {
     ^if.^match#IPending.^match ~ (dec_map.[((a, b), msg2_data a b ca, m2)]),
     ^if.^match#IPending.^match#Some.^caf<$ ~ {
       caf <$ dctxt;
+      bad <- bad \/ exists pk ad, (pk, ad, caf) \in dec_map;
       dec_map.[((a,b), msg3_data a b ca m2, caf)] <- ok;
      }
   ]
@@ -170,20 +176,21 @@ module Game2 = Game1 with {
 (* No ctxt collisions *)
 module Game3 = Game2 with {
   proc send_msg1 [
-    ^if.^ca<$ + (forall pk ad, (pk, ad, ca) \notin dec_map)
+    ^if.^bad<- + (!bad)
   ]
 
   proc send_msg2 [
-    ^if.^match#Some.^cb<$ + (forall pk ad, (pk, ad, ca) \notin dec_map)
+    ^if.^match#Some.^bad<- + (!bad)
   ]
 
   proc send_msg3 [
-    ^if.^match#IPending.^match#Some.^caf<$ + (forall pk ad, (pk, ad, ca) \notin dec_map)
+    ^if.^match#IPending.^match#Some.^bad<- + (!bad)
   ]
 }.
 
 (* Move the nonces *)
-module Game3 = Game2 with {
+(*
+module Game4 = Game3 with {
   var skey_map : (ctxt, nonce * nonce) fmap
   
   proc init_mem [
@@ -195,7 +202,7 @@ module Game3 = Game2 with {
   ]
 
   proc send_msg2 [
-    ^if^match#Some.^nb<$ ~ { nb <- witness; }
+    ^if.^match#Some.^nb<$ ~ { nb <- witness; }
   ]
 
   proc send_msg3 [
@@ -207,8 +214,9 @@ module Game3 = Game2 with {
     ^if.^match#RPending.^match#Some.^skey<- ~ { skey <- prf (oget skey_map.[m3]) (a, b); }
   ]
 }.
-*)
+    *)
 
+(*
 module Game2 = {
   var state_map: (id * int, role * instance_state) fmap
   var psk_map: (id * id, pskey) fmap
@@ -344,7 +352,6 @@ module Game2 = {
   proc test = rev_skey
 }.
 
-(*
 module GWAKE_nocol = {
   var state_map: (id * int, role * instance_state) fmap
   var psk_map: (id * id, pskey) fmap

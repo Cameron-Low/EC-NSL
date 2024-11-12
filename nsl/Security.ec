@@ -139,7 +139,54 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
 
 section.
 
-declare module A <: A_GWAKE {-GWAKE0, -Game1, -Game2, -GAEAD0, -GAEAD1, -Red_AEAD }.
+declare module A <: A_GWAKE {-GWAKE0, -Game1, -Game2, -Game3, -GAEAD0, -GAEAD1, -Red_AEAD }.
+
+lemma Step2 &m: `| Pr[E_GWAKE(Game2, A).run() @ &m : res] - Pr[E_GWAKE(Game3, A).run() @ &m : res] | <= Pr[E_GWAKE(Game3, A).run() @ &m : Game3.bad].
+proof.
+byequiv (: _ ==> _) : Game2.bad => //; first last.
++ move=> &1 &2.
+  by case: (Game3.bad{2}).
+proc; inline*.
+call (: Game3.bad, ={bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}(Game2, Game3)) => //.
++ admit. (* Make an axiom *)
++ by proc; inline*; auto; if; auto.
++ move=> &2 ->.
+  proc; sp; if; auto.
+  by rewrite dpskey_ll.  
++ move=> &1.
+  proc; sp; if; auto.
+  by rewrite dpskey_ll.  
++ proc.
+  sp; if=> //.
+  seq 2 2 : (#pre /\ ={na, ca}); 1: by auto.
+  sp 1 1.
+  by if{2}; auto=> />.
++ move=> &2 ->.
+  proc; sp; if=> //; auto.
+  by rewrite dnonce_ll dctxt_ll.
++ move=> &1.
+  proc; sp; if=> //; auto.
+  rewrite dnonce_ll dctxt_ll //=.
+  smt().
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+admit.
+auto=> />.
+move=> rl rr al bl dl pl sl ar br dr pr sr. 
+by case : (!br) => />.
+qed.
 
 local op clear_psk (s : instance_state) =
 match s with

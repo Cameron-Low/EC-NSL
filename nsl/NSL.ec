@@ -12,9 +12,9 @@ type msg_data =
 ].
 
 (* Distributions over types *)
-op dpskey : pskey distr.
+op [lossless] dpskey : pskey distr.
 op [lossless] dskey : skey distr.
-op dctxt : ctxt distr.
+op [lossless] dctxt : ctxt distr.
 op [lossless] dnonce : nonce distr.
 
 (* Construction operators *)
