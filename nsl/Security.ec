@@ -149,13 +149,15 @@ byequiv (: _ ==> _) : Game2.bad => //; first last.
 proc; inline*.
 call (: Game3.bad, ={bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}(Game2, Game3)) => //.
 + admit. (* Make an axiom *)
+
 + by proc; inline*; auto; if; auto.
 + move=> &2 ->.
   proc; sp; if; auto.
   by rewrite dpskey_ll.  
 + move=> &1.
   proc; sp; if; auto.
-  by rewrite dpskey_ll.  
+  by rewrite dpskey_ll. 
+ 
 + proc.
   sp; if=> //.
   seq 2 2 : (#pre /\ ={na, ca}); 1: by auto.
@@ -168,21 +170,55 @@ call (: Game3.bad, ={bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}(Gam
   proc; sp; if=> //; auto.
   rewrite dnonce_ll dctxt_ll //=.
   smt().
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
-admit.
+
++ proc.
+  sp; if=> //.
+  match =; auto.
++ move=> &2 ->.
+  proc; sp; if=> //; match =; auto.
+  by rewrite dnonce_ll dctxt_ll.
++ move=> &1.
+  proc; sp; if=> //; match =; auto.
+  rewrite dnonce_ll dctxt_ll //=.
+  smt().
+
++ proc.
+  sp; if=> //.
+  sp; match =; auto. 
+  - smt().
+  sp; match =; auto.  
++ move=> &2 ->.
+  proc; sp; if=> //; sp; match =; auto; sp; match =; auto.
+  by rewrite dnonce_ll dctxt_ll.
++ move=> &1.
+  proc; sp; if=> //; sp; match =; auto; sp; match =; auto.
+  rewrite dnonce_ll dctxt_ll //=.
+  smt().
+
++ proc.
+  sp; if=> //.
+  sp; match =; auto; smt(). 
++ move=> &2 ->.
+  proc; sp; if=> //; sp; match =; auto; smt().
++ move=> &1.
+  proc; sp; if=> //; sp; match =; auto; smt().
+
++ proc.
+  sp; if=> //.
+  sp; match =; auto; smt(). 
++ move=> &2 ->.
+  proc; sp; if=> //; sp; match =; auto; smt().
++ move=> &1.
+  proc; sp; if=> //; sp; match =; auto; smt().
+
+
++ proc.
+  sp; if=> //.
+  sp; match =; auto; smt(). 
++ move=> &2 ->.
+  proc; sp; if=> //; sp; match =; auto; smt().
++ move=> &1.
+  proc; sp; if=> //; sp; match =; auto; smt().
 auto=> />.
 move=> rl rr al bl dl pl sl ar br dr pr sr. 
 by case : (!br) => />.
