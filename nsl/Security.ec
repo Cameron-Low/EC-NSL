@@ -137,7 +137,6 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
   }
 }.
 
-
 clone import PROM.FullRO as NROc with
   type in_t    <= ctxt,
   type out_t   <= nonce,
@@ -148,27 +147,27 @@ proof *.
 
 module (Red_ROM (D : A_GWAKE) : RO_Distinguisher) (O : RO) = {
   module WAKE_O : GWAKE_out = {
-      var dec_map : ((id * id) * msg_data * ctxt, nonce) fmap
-      var bad : bool
-      var state_map : (id * int, role * instance_state) fmap
-      var psk_map : (id * id, pskey) fmap
-    
-      proc init_mem() = {
-        state_map <- empty;
-        psk_map <- empty;
-        bad <- false;
-        dec_map <- empty;
-      }
-    
-      proc gen_pskey(a, b) = {
-        var k;
+    var dec_map : ((id * id) * msg_data * ctxt, nonce) fmap
+    var bad : bool
+    var state_map : (id * int, role * instance_state) fmap
+    var psk_map : (id * id, pskey) fmap
   
-        if ((a, b) \notin psk_map) {
-          k <$ dpskey;
-          psk_map.[a, b] <- k;
-        }
+    proc init_mem() = {
+      state_map <- empty;
+      psk_map <- empty;
+      bad <- false;
+      dec_map <- empty;
+    }
+  
+    proc gen_pskey(a, b) = {
+      var k;
+  
+      if ((a, b) \notin psk_map) {
+        k <$ dpskey;
+        psk_map.[a, b] <- k;
       }
-    
+    }
+  
     proc send_msg1(a, i, b) = {
       var ca, mo;
       
@@ -212,7 +211,7 @@ module (Red_ROM (D : A_GWAKE) : RO_Distinguisher) (O : RO) = {
     }
     
     proc send_msg3(a : id, i : int, m2 : ctxt) : ctxt option = {
-      var role, st, b, psk, na, nb, ca, skey, caf, mo; 
+      var role, st, b, psk, na, ok, ca, skey, caf, mo; 
       
       mo <- None;
       if ((a, i) \in state_map) {
@@ -222,14 +221,14 @@ module (Red_ROM (D : A_GWAKE) : RO_Distinguisher) (O : RO) = {
           (b, psk, na, ca) <- s;
           if (dec_map.[(a, b), msg2_data a b ca, m2] is Some nb) {
             caf <$ dctxt;
-            bad <- bad \/ exists pk ad, (pk, ad, m2) \in dec_map;
+            bad <- bad \/ exists pk ad, (pk, ad, caf) \in dec_map;
             if (!bad) {
               O.sample(caf);
               dec_map.[(a, b), msg3_data a b ca m2, caf] <- witness;
               mo <- Some caf;
               na <@ O.get(ca);
-              nb <@ O.get(m2);
-              skey <- prf (na, nb) (a, b);
+              ok <@ O.get(m2);
+              skey <- prf (na, ok) (a, b);
               state_map.[a, i] <- (Initiator, Accepted (m1, m2, caf) skey);
             }
           } else {
@@ -335,6 +334,104 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.send_fin =>
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
 
+
+lemma Step4 &m: Pr[E_GWAKE(Game4, A).run() @ &m : res] = Pr[E_GWAKE(Game5, A).run() @ &m : res].
+byequiv => //.
+proc*.
+transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); } => //.
++ smt().
+
++ inline*.
+  wp.
+  call (: ={state_map, psk_map, bad}(Game4, Red_ROM.WAKE_O)
+       /\ (forall h, h \in Game4.dec_map{1} <=> h \in Red_ROM.WAKE_O.dec_map{2})
+       /\ (forall c n, (exists pk ad, Game4.dec_map{1}.[(pk, ad, c)] = Some n) <=> RO.m{2}.[c] = Some n)
+       /\ (forall a b ca cb, ((a, b), msg2_data a b ca, cb) \in Game4.dec_map => ((a, b), msg1_data a b, ca) \in Game4.dec_map){1}
+       /\ (forall a b ca cb caf, ((a, b), msg3_data a b ca cb, caf) \in Game4.dec_map => ((a, b), msg2_data a b ca, cb) \in Game4.dec_map){1}
+  ) => //.
+
+  - by proc; sp; if; auto.
+
+  - proc; inline*.
+    sp; if=> //.
+    seq 1 1 : (#pre /\ ={ca}); 1: by auto.
+    sp; if=> //.
+    + smt().
+    + rcondt {2} ^if; 1: by auto=> /#. 
+      auto=> />.
+      smt(get_setE).
+    by auto=> /#.
+  
+   - proc; inline*.
+     sp; if=> //. 
+     match; 1,2: smt().
+     + by auto=> />.
+     move=> nal nar.
+     seq 1 1 : (#pre /\ ={cb}); 1: by auto.
+     sp; if=> //.
+     + smt().
+     + rcondt {2} ^if; 1: by auto=> /#. 
+       auto=> />.
+       smt(get_setE).
+     auto=> />.
+     smt(). 
+
+   - proc; inline*.
+     sp; if=> //. 
+     sp; match = => //.
+     + smt().
+     move=> s m1.
+     sp; match; 1,2: smt().
+     + by auto=> />.
+     move=> nbl nbr.
+     seq 1 1 : (#pre /\ ={caf}); 1: by auto.
+     case (Game4.bad{1}).
+     + rcondf {1} ^if; 1: by auto=> />.
+       rcondf {2} ^if; 1: by auto=> />.
+       by auto=> />.
+     sp; if=> //.
+     + smt().
+     + rcondt {2} ^if; 1: by auto=> /#.
+       rcondf {2} ^if.
+       + auto=> />.
+         smt(mem_set).
+       rcondf {2} ^if.
+       + auto=> />.
+         smt(mem_set).
+       swap {2} ^r1<$ @ ^x<-.
+       seq 1 1 : (#pre /\ ok{1} = r1{2}); 1: by auto => />.
+       auto=> />.
+       + smt(get_setE).
+    auto=> />.
+    smt().
+  
+   - proc; inline*.
+     sp; if=> //. 
+     sp; match = => //.
+     + smt().
+     move=> s m1 m2.
+     sp; match; 1,2: smt().
+     + by auto=> />.
+     move=> nokl nokr.
+     rcondf {2} ^if; 1: by auto=> /#.
+     rcondf {2} ^if; 1: by auto=> /#.
+     auto=> />.
+     smt(get_setE).
+  
+   - by sim />.
+   
+   - by sim />.
+
+   auto=> />.
+   smt(emptyE).
+
+have ll : forall (c : ctxt), is_lossless dnonce by move=> _; exact dnonce_ll.
+rewrite equiv [{1} 1 (FullEager.RO_LRO (Red_ROM(A)) ll)].
+inline*.
+
+admit.
+qed.
+
 local op clear_nonces (s : instance_state) =
 match s with
 | IPending st m1 => 
@@ -375,9 +472,6 @@ rewrite -(eqsm h) /s /r //=.
 case: (sml.[h])=> //.
 by move=> [r' []] // [].
 qed.
-
-lemma Step4 &m: Pr[E_GWAKE(Game4, A).run() @ &m : res] = Pr[MainD(Red_ROM(A), LRO).distinguish() @ &m :res].
-proof. admitted.
 
 lemma Step3 &m: Pr[E_GWAKE(Game3, A).run() @ &m : res] = Pr[E_GWAKE(Game4, A).run() @ &m :res].
 proof.
