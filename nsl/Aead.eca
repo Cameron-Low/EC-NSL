@@ -28,10 +28,6 @@ module type GAEAD_out_i = {
 
 module GAEADb = {
   var psk_map : (handle, key) fmap
-  
-  proc init_mem() = {
-    psk_map <- empty;
-  }
 
   proc gen(h: handle) : unit = {
     var k;
@@ -48,6 +44,10 @@ module GAEADb = {
 
 module GAEAD0 : GAEAD_out_i = {
   include var GAEADb
+  
+  proc init_mem() = {
+    psk_map <- empty;
+  }
 
   proc enc(h: handle, ad: data, p: ptxt) : ctxt option = {
     var c;
@@ -73,6 +73,11 @@ module GAEAD0 : GAEAD_out_i = {
 module GAEAD1 : GAEAD_out_i = {
   include var GAEADb
   var ctxts : (handle * data * ctxt, ptxt) fmap
+
+  proc init_mem() = {
+    psk_map <- empty;
+    ctxts <- empty;
+  }
 
   proc enc(h: handle, ad: data, p : ptxt) : ctxt option = {
     var c;

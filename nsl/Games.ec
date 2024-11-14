@@ -178,7 +178,6 @@ module Game2 = Game1 with {
     ^if.^match#RPending.^match ~ (dec_map.[((a, b), msg3_data a b ca cb, m3)])
   ]
 }.
-print Game2.
 
 (* No ctxt collisions *)
 module Game3 = Game2 with {
@@ -194,7 +193,6 @@ module Game3 = Game2 with {
     ^if.^match#IPending.^match#Some.^bad<- + (!bad)
   ]
 }.
-print Game3.
 
 (* Simplify nonce retrieval *)
 module Game4 = Game3 with {
@@ -223,11 +221,34 @@ module Game4 = Game3 with {
     }
   ]
 }.
-print Game4.
 
+(* Delay nonce sampling *)
 module Game5 = Game4 with {
   var prfkey_map : (ctxt, nonce * nonce) fmap
+  
+  proc init_mem [
+    -1 + { prfkey_map <- empty; }
+  ]
+
+  proc send_msg1 [
+    ^if.^if.^na<$ -,
+    ^if.^if.^dec_map<- ~ {
+      dec_map.[((a, b), msg1_data a b, ca)] <- witness;
+    }
+  ]
+
+  proc send_msg2 [
+    ^if.^match#Some.^if.^nb<$ -,
+    ^if.^match#Some.^if.^dec_map<- ~ {
+      dec_map.[((a, b), msg2_data a b ca, cb)] <- witness;
+    }
+  ]
+
   proc send_msg3 [
+    ^if.^match#IPending.^match#Some.^if.^ok<$ -,
+    ^if.^match#IPending.^match#Some.^if.^dec_map<- ~ {
+      dec_map.[((a, b), msg3_data a b ca m2, caf)] <- witness;
+    },
     ^if.^match#IPending.^match#Some.^if.^skey<- ~ { 
       (na, ok) <$ dnonce `*` dnonce;
       prfkey_map.[caf] <- (na, ok);
@@ -241,7 +262,6 @@ module Game5 = Game4 with {
     }
   ]
 }.
-print Game5.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Game 0 invariants *)
@@ -804,7 +824,6 @@ qed.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Game 3 invariants *)
-print Game3.
 inductive Game3_inv 
   (sm: (id * int, role * instance_state) fmap)
   (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
