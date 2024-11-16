@@ -196,7 +196,6 @@ module Game3 = Game2 with {
 
 (* Simplify nonce retrieval *)
 module Game4 = Game3 with {
-
   proc send_msg1 [
     ^if.^if.^state_map<- ~ {
       state_map.[(a, i)] <- (Initiator, IPending (b, witness, witness, ca) (a, ca));

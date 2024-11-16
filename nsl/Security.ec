@@ -325,33 +325,6 @@ module (Red_ROM (D : A_GWAKE) : RO_Distinguisher) (O : RO) = {
     return b;
   }
 }.
-
-(* ------------------------------------------------------------------------------------------ *)
-(* Red_ROM invariants *)
-inductive Red_ROM_inv 
-  (sm: (id * int, role * instance_state) fmap)
-  (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
-  (nm : (msg_data * ctxt, nonce) fmap)
-  (a: id) (i: int)
-=
-| Red_ROM_undef of
-    (sm.[a, i] = None)
-| Red_ROM_aborted r of
-    (sm.[a, i] = Some (r, Aborted))
-| Red_ROM_ipending b na c1 kab of
-    (sm.[a, i] = Some (Initiator, IPending (b, kab, na, c1) (a, c1)))
-  & (((a, b), msg1_data a b, c1) \in dm)
-  & ((msg1_data a b, c1) \notin nm)
-  & (forall c2, (msg2_data a b c1, c2) \notin nm)
-| Red_ROM_rpending b nb na c1 c2 kba of
-    (sm.[a, i] = Some (Responder, RPending (b, kba, nb, na, c1, c2) (b, c1) c2))
-  & (((b, a), msg1_data b a, c1) \in dm)
-  & (((b, a), msg2_data b a c1, c2) \in dm)
-  & (exists c3, ((b, a), msg3_data b a c1 c2, c3) \in dm => (msg1_data a b, c1) \in nm /\ (msg2_data a b c1, c2) \in nm)
-| Red_ROM_accepted r tr k of
-    (sm.[a, i] = Some (r, Accepted tr k))
-| Red_ROM_observed r tr k of
-    (sm.[a, i] = Some (r, Observed tr k)).
     
 (* ------------------------------------------------------------------------------------------ *)
 (* Security Proof *)
@@ -368,6 +341,153 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.send_msg3 =>
   islossless GW.send_fin =>
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
+
+(* ------------------------------------------------------------------------------------------ *)
+(* Red_ROM invariants *)
+inductive Red_ROM_inv 
+  (sm: (id * int, role * instance_state) fmap)
+  (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
+  (nm : (msg_data * ctxt, nonce) fmap)
+  (a: id) (i: int)
+=
+| Red_ROM_undef of
+    (sm.[a, i] = None)
+| Red_ROM_aborted r of
+    (sm.[a, i] = Some (r, Aborted))
+| Red_ROM_ipending b c1 of
+    (sm.[a, i] = Some (Initiator, IPending (b, witness, witness, c1) (a, c1)))
+  & ((msg1_data a b, c1) \notin nm)
+  & (forall c2, (msg2_data a b c1, c2) \notin nm)
+| Red_ROM_rpending b c1 c2 of
+    (sm.[a, i] = Some (Responder, RPending (b, witness, witness, witness, c1, c2) (b, c1) c2))
+  & (forall c3, ((b, a), msg3_data b a c1 c2, c3) \in dm => (msg1_data b a, c1) \in nm /\ (msg2_data b a c1, c2) \in nm)
+| Red_ROM_accepted r tr k of
+    (sm.[a, i] = Some (r, Accepted tr k))
+| Red_ROM_observed r tr k of
+    (sm.[a, i] = Some (r, Observed tr k)).
+   
+lemma Red_ROM_inv_neq_sm a i c j v sm dm nm:
+! (c = a /\ j = i) =>
+Red_ROM_inv sm dm nm c j =>
+Red_ROM_inv sm.[(a, i) <- v] dm nm c j.
+proof.
+move=> neq
+[ 
+  smbj
+| r smbj
+| b c1 smbj
+| b c1 c2 smbj
+| r tr k smbj
+| r tr k smbj
+].
++ apply Red_ROM_undef.
+  by rewrite get_set_neqE.
++ apply (Red_ROM_aborted _ _ _ _ _ r).
+  by rewrite get_set_neqE.
++ apply (Red_ROM_ipending _ _ _ _ _ b c1) => //.
+  by rewrite get_set_neqE.
++ apply (Red_ROM_rpending _ _ _ _ _ b c1 c2)=> //.
+  by rewrite get_set_neqE.
++ apply (Red_ROM_accepted _ _ _ _  _ r tr k)=> //.
+  by rewrite get_set_neqE.
+apply (Red_ROM_observed _ _ _ _ _ r tr k)=> //.
+by rewrite get_set_neqE.
+qed.
+
+(*
+lemma Red_ROM_inv_neq_dm a i c n sm (dm : (_, _) fmap) nm:
+! (exists pk ad, (pk, ad, c) \in dm) =>
+Red_ROM_inv sm dm nm a i =>
+forall pk ad, Red_ROM_inv sm dm.[(pk, ad, c) <- n] nm a i.
+proof.
+move=> neq
+[ 
+  smbj
+| r smbj
+| b c1 smbj ? ?
+| b c1 c2 smbj v
+| r tr k smbj
+| r tr k smbj
+] pk ad.
++ exact Red_ROM_undef.
++ exact (Red_ROM_aborted _ _ _ _ _ r).
++ exact (Red_ROM_ipending _ _ _ _ _ b c1).
++ apply (Red_ROM_rpending _ _ _ _ _ b c1 c2)=> //.
+  move=> c3.
+  rewrite mem_set.
+  case; 1: smt().
+  move=> />.
+  smt(mem_set). 
+  by rewrite get_set_neqE.
++ apply (Red_ROM_accepted _ _ _ _  _ r tr k)=> //.
+  by rewrite get_set_neqE.
+apply (Red_ROM_observed _ _ _ _ _ r tr k)=> //.
+by rewrite get_set_neqE.
+qed.
+    *)
+ 
+hoare Red_ROM_inv_send_msg3: Red_ROM(A, LRO).WAKE_O.send_msg3:
+  (forall a i, Red_ROM_inv Red_ROM.WAKE_O.state_map Red_ROM.WAKE_O.dec_map RO.m a i)
+  /\ (forall a i j b psk na c, 
+    Red_ROM.WAKE_O.state_map.[(a, i)] = Some (Initiator, IPending (b, psk, na, c) (a, c))
+    /\ Red_ROM.WAKE_O.state_map.[(a, j)] = Some (Initiator, IPending (b, psk, na, c) (a, c))
+    => i = j)
+==>
+  (forall a i j b psk na c, 
+    Red_ROM.WAKE_O.state_map.[(a, i)] = Some (Initiator, IPending (b, psk, na, c) (a, c))
+    /\ Red_ROM.WAKE_O.state_map.[(a, j)] = Some (Initiator, IPending (b, psk, na, c) (a, c))
+    => i = j)
+  /\ (forall a i, Red_ROM_inv Red_ROM.WAKE_O.state_map Red_ROM.WAKE_O.dec_map RO.m a i).
+proof.
+proc; inline*.
+sp; if=> //.
+sp; match => //.
+sp; match.
++ auto => /> &m decn st inv1 inv2 abin. 
+  split; 1: smt(get_setE).
+  move=> a' i'.
+  case ((a', i') = (a, i){m}) => /> => [|neq_ai].
+  - apply (Red_ROM_aborted _ _ _ _ _ Initiator).
+    by rewrite get_set_sameE. 
+  apply Red_ROM_inv_neq_sm => //.
+  exact inv1.
+seq 1 : (#pre); 1: by auto.
+case (Red_ROM.WAKE_O.bad).
++ by rcondf ^if; auto=> />.
+sp; if=> //.
+rcondt ^if.
++ auto=> />.
+  move=> &hr _ dm sm inv1 inv2 aiin _ uniqcaf n _.
+  have sms : (Red_ROM.WAKE_O.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){hr} by smt().
+  by case: (inv1 a{hr} i{hr}) ; rewrite sms.
+rcondt ^if.
++ auto=> />.
+  move=> &hr _ dm sm inv1 inv2 aiin _ uniqcaf n _ n2 _.
+  have sms : (Red_ROM.WAKE_O.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){hr} by smt().
+  rewrite mem_set /=.
+  case: (inv1 a{hr} i{hr}) ; rewrite sms //=.
+  smt().
+auto=> />.  
+move=> &hr _ dm sm inv1 inv2 aiin _ uniqcaf n _ n2 _.
+split; 1: smt(get_setE).
+move=> a' i'.
+case ((a', i') = (a, i){hr}) => /> => [|neq_ai].
++ apply (Red_ROM_accepted _ _ _ _ _ Initiator (m1{hr}, m2{hr}, caf{hr}) (prf (n, n2) (a{hr}, b{hr}))).
+  by rewrite !get_set_sameE.
+rewrite !get_set_sameE //=.
+apply Red_ROM_inv_neq_sm  => //.
+case (inv1 a' i') =>[
+ smbj
+| r smbj
+| b c1 smbj v1 v2
+| b c1 c2 smbj v
+| r tr k smbj
+| r tr k smbj
+].
++ exact Red_ROM_undef.
++ exact (Red_ROM_aborted _ _ _ _ _ r).
++ apply (Red_ROM_ipending _ _ _ _ _ b c1) => //.
+admitted.
 
 local clone import DProd.ProdSampling with
   type t1 <- nonce,
@@ -463,12 +583,15 @@ transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); } => //.
 
    auto=> />.
    smt(emptyE).
-
+  
 have ll : forall (c : msg_data * ctxt), is_lossless dnonce by move=> _; exact dnonce_ll.
 rewrite equiv [{1} 1 (FullEager.RO_LRO (Red_ROM(A)) ll)].
 inline*.
 wp; call (: 
   ={state_map, psk_map, bad, dec_map}(Red_ROM.WAKE_O, Game5)
+  /\ (forall a b ca cb caf, ((a, b), msg3_data a b ca cb, caf) \in Red_ROM.WAKE_O.dec_map{1} =>
+       oget Game5.prfkey_map{2}.[caf] = (oget RO.m{1}.[(msg1_data a b, ca)], oget RO.m{1}.[(msg2_data a b ca, cb)]))
+  /\ (forall a i, Red_ROM_inv Red_ROM.WAKE_O.state_map Red_ROM.WAKE_O.dec_map RO.m a i){1}
 ) => //.
 
 - by sim />.
@@ -482,11 +605,12 @@ wp; call (:
     auto=> />.
   sp 1 1; if=> //.
   auto=> />.
+  admit.
 
 - proc; inline*.
   sp; if=> //.
   sp; match = => //.
-  + by auto=> />.
+  + by auto=> />; admit.
   move=> na.
   seq 1 1 : (#pre /\ ={cb}); 1: by auto.
   case (Red_ROM.WAKE_O.bad{1}).
@@ -495,6 +619,7 @@ wp; call (:
     auto=> />.
   sp 1 1; if=> //.
   auto=> />.
+  admit.
 
 - proc; inline*.
   sp; if=> //.
@@ -502,7 +627,7 @@ wp; call (:
   + smt().
   move=> s m1.
   sp; match = => //.
-  + by auto.
+  + by auto; admit.
   move=> nb.
   seq 1 1 : (#pre /\ ={caf}); 1: by auto.
   case (Red_ROM.WAKE_O.bad{1}).
@@ -512,15 +637,22 @@ wp; call (:
   sp 1 1; if=> //.
   rcondt {1} ^if.
   + auto=> />.
-    admit. (* ca \notin RO.m *)
+    move=> &hr _ dm _ sm _ inv1 inl aiin _ uniqcaf n _.
+    have sms : (Game5.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){m0} by smt().
+    by case: (inl a{m0} i{m0}) ; rewrite sms.
   rcondt {1} ^if.
   + auto=> />.
-    admit. (* cb \notin RO.m *)
+    move=> &hr _ dm _ sm _ inv1 inl aiin _ uniqcaf n _ ok _.
+    have sms : (Game5.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){m0} by smt().
+    rewrite mem_set //=.
+    case: (inl a{m0} i{m0}) ; rewrite sms //=.
+    smt().
   outline {2} [3] (na, ok) <@ S.sample. 
   wp; rewrite equiv [{2} 3 sample_sample2].
   inline*.
   auto=> />.
-  smt(get_setE).
+  admit.
+(*   smt(get_setE).*)
 
 - proc; inline*.
   sp; if=> //.
@@ -528,22 +660,34 @@ wp; call (:
   + smt().
   move=> s m1 m2.
   sp; match = => //.
-  + by auto.
+  + by auto; admit.
   move=> nok.
   rcondf {1} ^if.
   + auto=> />.
-    admit. (* ca \in RO.m *)
+    move=> &hr dm _ sm _ inv1 inl bjin ok _.
+    have sms : (Game5.state_map.[(b, j)] = Some (role, RPending (a, psk, na, nb, ca, cb) m1 m2)){m0} by smt().
+    case: (inl b{m0} j{m0}) ; rewrite sms //=.
+    smt().
   rcondf {1} ^if.
   + auto=> />.
-    admit. (* cb \in RO.m *)
+    move=> &hr dm _ sm _ inv1 inl bjin n _ ok _.
+    have sms : (Game5.state_map.[(b, j)] = Some (role, RPending (a, psk, na, nb, ca, cb) m1 m2)){m0} by smt().
+    case: (inl b{m0} j{m0}) ; rewrite sms //=.
+    smt().
   auto=> />.
+  move=> &1 &2 dm1 dm sm _ inv1 inl bjin n _ ok _.
+  split.
+  + smt().
   admit. (* (RO.m[ca], RO.m[cb]) = prf_key.[caf]*)
 
-- by sim />.
+- admit.
 
-- by sim />.
+- admit.
 
-by auto.
+auto => />.
+split; 1: smt(emptyE).
+move=> a i.
+exact /Red_ROM_undef/emptyE.
 qed.
 
 local op clear_nonces (s : instance_state) =
