@@ -262,6 +262,24 @@ module Game5 = Game4 with {
   ]
 }.
 
+module Game6 = Game5 with {
+  var f : ((nonce * nonce) * (id * id), skey) fmap
+
+  proc send_msg3 [
+    ^if.^match#IPending.^match#Some.^if.^skey<- ~ {
+       skey <$ dskey;
+       if (((na, ok), (a, b)) \notin f) 
+         f.[((na, ok), (a, b))] <- skey;
+    }
+  ]
+
+  proc send_fin [
+    ^if.^match#RPending.^match#Some.^skey<- ~ {
+      skey <- oget f.[((na, nb), (a, b))];
+    }
+  ]
+}.
+
 (* ------------------------------------------------------------------------------------------ *)
 (* Game 0 invariants *)
 

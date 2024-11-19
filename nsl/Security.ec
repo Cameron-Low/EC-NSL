@@ -507,8 +507,8 @@ case (inv1 a' i') =>[
   smt(mem_set).
 + apply (Red_ROM_rpending _ _ _ _ _ b c1 c2) => //.
   smt(mem_set).
-+ exact (Red_ROM_accepted _ _ _ _ _ r tr k) => //.
-exact (Red_ROM_observed _ _ _ _ _ r tr k) => //.
++ exact (Red_ROM_accepted _ _ _ _ _ r tr k).
+exact (Red_ROM_observed _ _ _ _ _ r tr k).
 qed.
  
 hoare Red_ROM_inv_send_msg3: Red_ROM(A, LRO).WAKE_O.send_msg3:

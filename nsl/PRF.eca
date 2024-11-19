@@ -1,0 +1,89 @@
+require import FMap.
+
+type handle, key, D, R.
+
+op dkey : key distr.
+op dR : D -> R distr.
+
+op f : key -> D -> R.
+
+module type GPRF_out = {
+  proc gen(_: handle) : unit
+  proc f(_: handle * D) : R option
+}.
+
+module type GPRF_out_i = {
+  proc init_mem() : unit
+  include GPRF_out
+}.
+
+module PRFb = {
+  var kmap : (handle, key) fmap
+
+  proc gen(h) : unit = {
+    var k;
+
+    if (h \notin kmap) {
+      k <$ dkey;
+      kmap.[h] <- k;
+    }
+  }
+}.
+
+module PRF0 : GPRF_out_i = {
+  include var PRFb
+
+  proc init_mem() = {
+    kmap <- empty;
+  }
+  
+  proc f(h, x) = {
+    var r <- None;
+    if (kmap.[h] is Some k) {
+      r <- Some (f k x);
+    }
+    return r;
+  }
+}.
+
+module PRF1 : GPRF_out_i = {
+  include var PRFb
+
+  var cache : (key * D, R) fmap
+
+  proc init_mem() = {
+    kmap <- empty;
+    cache <- empty;
+  }
+
+  proc f(h, x) = {
+    var y;
+    var r <- None;
+    if (kmap.[h] is Some k) {
+      y <$ dR x;
+      if ((k, x) \notin cache) {
+        cache.[(k, x)] <- y;
+      }
+      r <- cache.[(k, x)];
+    }
+    return r;
+  }
+}.
+
+(********************************************************************************)
+(* Adversary and Experiment *)
+module type A_GPRF (GA : GPRF_out) = {
+  proc run() : bool
+}.
+
+module E_GPRF (O : GPRF_out_i) (A : A_GPRF) = {
+  proc run() : bool = {
+    var b : bool;
+
+    O.init_mem();
+    
+    b <@ A(O).run();
+    
+    return b;
+  }
+}.
