@@ -18,14 +18,14 @@ module type GPRF_out_i = {
 }.
 
 module PRFb = {
-  var kmap : (handle, key) fmap
+  var prfkey_map : (handle, key) fmap
 
   proc gen(h) : unit = {
     var k;
 
-    if (h \notin kmap) {
+    if (h \notin prfkey_map) {
       k <$ dkey;
-      kmap.[h] <- k;
+      prfkey_map.[h] <- k;
     }
   }
 }.
@@ -34,12 +34,12 @@ module PRF0 : GPRF_out_i = {
   include var PRFb
 
   proc init_mem() = {
-    kmap <- empty;
+    prfkey_map <- empty;
   }
   
   proc f(h, x) = {
     var r <- None;
-    if (kmap.[h] is Some k) {
+    if (prfkey_map.[h] is Some k) {
       r <- Some (f k x);
     }
     return r;
@@ -52,14 +52,14 @@ module PRF1 : GPRF_out_i = {
   var cache : (key * D, R) fmap
 
   proc init_mem() = {
-    kmap <- empty;
+    prfkey_map <- empty;
     cache <- empty;
   }
 
   proc f(h, x) = {
     var y;
     var r <- None;
-    if (kmap.[h] is Some k) {
+    if (prfkey_map.[h] is Some k) {
       y <$ dR x;
       if ((k, x) \notin cache) {
         cache.[(k, x)] <- y;

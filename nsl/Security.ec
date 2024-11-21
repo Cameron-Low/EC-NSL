@@ -1,5 +1,5 @@
 require import AllCore FSet FMap Distr DProd PROM NSL Games.
-import GWAKEc AEADc.
+import GWAKEc AEADc PRFc.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Reductions *)
@@ -325,13 +325,185 @@ module (Red_ROM (D : A_GWAKE) : RO_Distinguisher) (O : RO) = {
     return b;
   }
 }.
+
+(* ------------------------------------------------------------------------------------------ *)
+(* PRF Reduction *)
+module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
+  module WAKE_O : GWAKE_out = {
+    var dec_map : ((id * id) * msg_data * ctxt, nonce) fmap
+    var bad : bool
+    var state_map : (id * int, role * instance_state) fmap
+    var psk_map : (id * id, pskey) fmap
+  
+    proc init_mem() = {
+      state_map <- empty;
+      psk_map <- empty;
+      bad <- false;
+      dec_map <- empty;
+    }
+  
+    proc gen_pskey(a, b) = {
+      var k;
+  
+      if ((a, b) \notin psk_map) {
+        k <$ dpskey;
+        psk_map.[a, b] <- k;
+      }
+    }
+  
+    proc send_msg1(a, i, b) = {
+      var ca, mo;
+      
+      mo <- None;
+      if (((a, i) \notin state_map) /\ ((a, b) \in psk_map)) {
+        ca <$ dctxt;
+        bad <- bad \/ exists pk ad, (pk, ad, ca) \in dec_map;
+        if (!bad) {
+          dec_map.[(a, b), msg1_data a b, ca] <- witness;
+          mo <- Some ca;
+          state_map.[a, i] <- (Initiator, IPending (b, witness, witness, ca) (a, ca));
+        }
+      }
+      
+      return mo;
+    }
+
+    proc send_msg2(b : id, j : int, m1 : id * ctxt) : ctxt option = {
+      var a, ca, role, st, cb, mo;
+      
+      mo <- None;
+      (a, ca) <- m1;
+      (role, st) <- oget state_map.[b, j];
+      if (((b, j) \notin state_map) /\ ((a, b) \in psk_map)) {
+        if (dec_map.[(a, b), msg1_data a b, ca] is Some na) {
+          cb <$ dctxt;
+          bad <- bad \/ exists pk ad, (pk, ad, cb) \in dec_map;
+          if (!bad) {
+            dec_map.[(a, b), msg2_data a b ca, cb] <- witness;
+            mo <- Some cb;
+            state_map.[b, j] <- (Responder, RPending (a, witness, witness, witness, ca, cb) m1 cb);
+          }
+        } else {
+          state_map.[b, j] <- (Responder, Aborted);
+        }
+      }
+      
+      return mo;
+    }
+    
+    proc send_msg3(a : id, i : int, m2 : ctxt) : ctxt option = {
+      var role, st, b, psk, na, ca, skey, caf, mo; 
+      
+      mo <- None;
+      if ((a, i) \in state_map) {
+        (role, st) <- oget state_map.[a, i];
+        match (st) with
+        | IPending s m1 => {
+          (b, psk, na, ca) <- s;
+          if (dec_map.[(a, b), msg2_data a b ca, m2] is Some nb) {
+            caf <$ dctxt;
+            bad <- bad \/ exists pk ad, (pk, ad, caf) \in dec_map;
+            if (!bad) {
+              dec_map.[(a, b), msg3_data a b ca m2, caf] <- witness;
+              mo <- Some caf;
+              O.gen(caf);
+              skey <@ O.f(caf, (a, b));
+              state_map.[a, i] <- (Initiator, Accepted (m1, m2, caf) (oget skey));
+            }
+          } else {
+            state_map.[a, i] <- (Initiator, Aborted);
+          }
+        }
+        | RPending _ _ _ => {}
+        | Accepted _ _ => {}
+        | Observed _ _ => {}
+        | Aborted => {}
+        end;
+      }
+      
+      return mo;
+    }
+
+    proc send_fin(b : id, j : int, m3 : ctxt) : unit option = {
+      var role, st, a, psk, na, nb, ca, cb, skey, mo;
+      
+      mo <- None;
+      if ((b, j) \in state_map) {
+        (role, st) <- oget state_map.[b, j];
+        match (st) with
+        | IPending _ _ => {}
+        | RPending s m1 m2 => {
+          (a, psk, na, nb, ca, cb) <- s;
+          if(dec_map.[(a, b), msg3_data a b ca cb, m3] is Some nok) {
+            skey <@ O.f(m3, (a, b));
+            state_map.[b, j] <- (Responder, Accepted (m1, m2, m3) (oget skey));
+            mo <- Some tt;
+          } else {
+           state_map.[b, j] <- (Responder, Aborted);
+          }
+        }
+        | Accepted _ _ => {}
+        | Observed _ _ => {}
+        | Aborted => {}
+        end;
+      }
+      
+      return mo;
+    }
+
+    proc rev_skey(a, i) = {
+      var role, st, p_role, p_st, ps, p, k;
+      var ko <- None;
+  
+      if ((a, i) \in state_map) {
+        (role, st) <- oget state_map.[(a, i)];
+        match st with
+        | Accepted trace k' => {
+          k <- k';
+          (* Get partners *)
+          ps <- get_partners (a, i) (Some trace) role state_map;
+          if (card ps <= 1) {
+            ps <- get_observed_partners (a, i) state_map;
+            (* If we have no observed partners then, we can test *)
+            if (card ps <> 0) {
+              (* If a partner has revealed something, we must use the same key *)
+              p <- pick ps;
+              (p_role, p_st) <- oget state_map.[p];
+              if (p_st is Observed _ p_k) {
+                k <- p_k;
+              }
+            }
+            ko <- Some k;
+            state_map.[(a, i)] <- (role, Observed trace k);
+          }
+        }
+        | Observed _ k'  => ko <- Some k';
+        | IPending _ _   => { }
+        | RPending _ _ _ => { }
+        | Aborted        => { }
+        end;
+      }
+      return ko;
+    }
+  
+    proc test = rev_skey
+  }
+  
+  proc run() = {
+    var b;
+    WAKE_O.init_mem();
+    b <@ D(WAKE_O).run();
+    return b;
+  }
+}.
+
     
 (* ------------------------------------------------------------------------------------------ *)
 (* Security Proof *)
 (* ------------------------------------------------------------------------------------------ *)
 section.
 
-declare module A <: A_GWAKE {-GWAKE0, -Game1, -Game2, -Game3, -Game4, -Game5, -GAEAD0, -GAEAD1, -Red_AEAD, -Red_ROM, -RO, -FRO}.
+declare module A <: A_GWAKE {-GWAKE0, -Game1, -Game2, -Game3, -Game4, -Game5, -Game6, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD, -Red_ROM, -Red_PRF, -RO, -FRO}.
 
 declare axiom A_ll:
 forall (GW <: GWAKE_out{-A}),
@@ -341,6 +513,43 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.send_msg3 =>
   islossless GW.send_fin =>
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
+
+
+lemma Step5 &m:
+    `|Pr[E_GWAKE(Game5, A).run() @ &m : res] - Pr[E_GWAKE(Game6, A).run() @ &m : res]|
+  = 
+    `|Pr[E_GPRF(PRF0, Red_PRF(A)).run() @ &m : res] - Pr[E_GPRF(PRF1, Red_PRF(A)).run() @ &m : res]|.
+proof.
+do! congr.
++ byequiv => //.
+  proc; inline*.
+  wp.
+  call (:
+        ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+  )=> //.
+  
+  - by sim />.
+
+  - by sim />.
+
+  - by sim />.
+
+  - admit. 
+
+  - admit.
+
+  - by sim />.
+
+  - by sim />.
+
+  auto => />.
+
+byequiv => //.
+proc; inline *.
+wp.
+admit. 
+qed.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Red_ROM invariants *)

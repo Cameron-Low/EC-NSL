@@ -1,5 +1,5 @@
 require import AllCore Distr FSet FMap.
-require GWAKE Aead.
+require GWAKE Aead PRF.
 
 type id, pskey, skey, nonce, ctxt.
 type ids = id * id.
@@ -51,6 +51,13 @@ clone import Aead as AEADc with
     op dec         <- dec
 proof *.
 realize correctness by admit. (** TODO: Lift the axiom up **)
+
+clone import PRF as PRFc with 
+  type handle <- ctxt,
+  type key <- (nonce * nonce),
+  type D <- ids,
+  type R <- skey
+proof *.
 
 (* The Protocol *)
 (*
