@@ -29,6 +29,8 @@ type trace = (id * ctxt) * ctxt * ctxt.
 type istate = id * pskey * nonce * ctxt.
 type rstate = id * pskey * nonce * nonce * ctxt * ctxt.
 
+axiom correctness k ad p c: k \in dpskey => c \in enc k ad p => dec k ad c = Some p.
+
 clone import GWAKE as GWAKEc with
   type id <- id,
   type msg <- ctxt,
@@ -48,9 +50,9 @@ clone import Aead as AEADc with
     op dkey        <- dpskey,
     op dctxt       <- dctxt,
     op enc         <- enc,
-    op dec         <- dec
+    op dec         <- dec,
+    axiom correctness <- correctness
 proof *.
-realize correctness by admit. (** TODO: Lift the axiom up **)
 
 clone import PRF as PRFc with 
   type handle <- ctxt,
