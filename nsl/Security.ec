@@ -527,28 +527,99 @@ do! congr.
   call (:
         ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
      /\ ={prfkey_map}(Game5, PRFb)
-  )=> //.
+  )=> //; 1,2,3,6,7: sim />.
   
-  - by sim />.
+  - proc; inline*.
+    sp; if=> //. 
+    sp; match = => //.
+    + smt().
+    move=> s m1.
+    sp; match; 1,2: smt().
+    + by auto=> />.
+    move=> nbl nbr.
+    seq 1 1 : (#pre /\ ={caf}); 1: by auto.
+    case (Game5.bad{1}).
+    + rcondf {1} ^if; 1: by auto=> />.
+      rcondf {2} ^if; 1: by auto=> />.
+      by auto=> />.
+    sp; if=> //.
+    sp; if{2} => //.
+    + match Some {2} ^match. auto => />. smt(mem_set).
+      auto => /> &1 &2 dmr badr dmnr dmnl smr sml aiin _ nindm ninprfm.
+      smt(get_setE).
+    match Some {2} ^match. auto => />. smt().
+    auto => />. 
+    admit. (* using uniqueness of caf to argue that update on left doesn't happen *)
 
-  - by sim />.
-
-  - by sim />.
-
-  - admit. 
-
-  - admit.
-
-  - by sim />.
-
-  - by sim />.
+   - proc; inline*.
+     sp; if=> //. 
+     sp; match = => //.
+     + smt().
+     move=> s m1 m2.
+     sp; match; 1,2: smt().
+     + by auto=> />.
+     move=> nokl nokr.
+     sp 0 3; match{2}.
+     + auto => /> &1 &2 prfn _ _ _ _ _. 
+       congr. rewrite prfn oget_none. 
+       admit. (* axiom that prf with witness as key returns witness? *)
+     auto => />.
+     smt(get_setE).
 
   auto => />.
 
 byequiv => //.
 proc; inline *.
 wp.
-admit. 
+call (:
+      ={psk_map, state_map, dec_map, bad}(Game6, Red_PRF.WAKE_O)
+   /\ ={prfkey_map}(Game6, PRFb)
+   /\ ={cache}(Game6, PRF1)
+)=> //; 1,2,3,6,7: sim />. 
+
+- proc; inline*.
+  sp; if=> //. 
+  sp; match = => //.
+  + smt().
+  move=> s m1.
+  sp; match; 1,2: smt().
+  + by auto=> />.
+  move=> nbl nbr.
+  seq 1 1 : (#pre /\ ={caf}); 1: by auto.
+  case (Game6.bad{1}).
+  + rcondf {1} ^if; 1: by auto=> />.
+    rcondf {2} ^if; 1: by auto=> />.
+    by auto=> />.
+  sp; if=> //.
+  sp; if{2} => //.
+  + match Some {2} ^match. auto => />. smt(mem_set).
+    seq 1 1 : (#pre /\ (na, ok){1} = k{2}). auto => />. admit.
+    sp.
+    seq 1 1 : (#pre /\ skey{1} = y{2}); 1: by auto => />.
+    if => //.
+    - smt(get_setE).
+    - auto => /> &1 &2 prfk _ _ _ _ _ _ _ _ _; smt(get_setE).
+    auto => /> &1 &2 prfk ? ? ? ? ? ? ? _ ? _ _. admit. (* I have stored right key *)
+  match Some {2} ^match. auto => /#.
+  admit.
+
+- proc; inline*.
+  sp; if=> //. 
+  sp; match = => //.
+  + smt().
+  move=> s m1 m2.
+  sp; match; 1,2: smt().
+  + by auto=> />.
+  move=> nokl nokr.
+  sp 0 3; match{2}.
+  + auto => /> &1 &2 prfn _ _ _ _ _. 
+    congr. 
+    admit.
+  auto => /> &1 &2 prfk _ _ smr sml bjin y0 _.
+  split. admit.
+  admit.
+
+auto => />.
 qed.
 
 (* ------------------------------------------------------------------------------------------ *)

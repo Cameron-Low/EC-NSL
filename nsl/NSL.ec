@@ -54,9 +54,12 @@ realize correctness by admit. (** TODO: Lift the axiom up **)
 
 clone import PRF as PRFc with 
   type handle <- ctxt,
-  type key <- (nonce * nonce),
-  type D <- ids,
-  type R <- skey
+  type key    <- nonce * nonce,
+  type D      <- ids,
+  type R      <- skey, 
+  op   dkey   <- dnonce `*` dnonce,
+  op   dR _   <- dskey,
+  op   f      <- prf
 proof *.
 
 (* The Protocol *)
