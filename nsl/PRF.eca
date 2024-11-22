@@ -49,7 +49,7 @@ module PRF0 : GPRF_out_i = {
 module PRF1 : GPRF_out_i = {
   include var PRFb
 
-  var cache : (key * D, R) fmap
+  var cache : (handle * D, R) fmap
 
   proc init_mem() = {
     prfkey_map <- empty;
@@ -61,10 +61,10 @@ module PRF1 : GPRF_out_i = {
     var r <- None;
     if (prfkey_map.[h] is Some k) {
       y <$ dR x;
-      if ((k, x) \notin cache) {
-        cache.[(k, x)] <- y;
+      if ((h, x) \notin cache) {
+        cache.[(h, x)] <- y;
       }
-      r <- cache.[(k, x)];
+      r <- cache.[(h, x)];
     }
     return r;
   }

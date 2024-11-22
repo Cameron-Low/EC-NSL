@@ -5,26 +5,8 @@ import GWAKEc AEADc PRFc.
 (* Reductions *)
 (* ------------------------------------------------------------------------------------------ *)
 
-print Game1.
 (* AEAD Reduction *)
 module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
-  (*
-  module WAKE_O : GWAKE_out = Game1 with {
-    var - psk_map
-    
-    proc init_mem [ ^psk_map<- - ]
-    proc gen_pskey ~ O.gen
-    proc send_msg1
-    (ex : bool)
-    [
-      ^mo<- + { ex <@ O.ex((a, b)); },
-      ^if ~ ((a, i) \notin state_map /\ ex),
-      ^if.^ca<$ -,
-      ^if.^mo<- ~ { mo <@ O.enc((a, b), msg1_data a b, na); ca <- oget mo; }
-    ]
-    
-  }
-  *)
   module WAKE_O : GWAKE_out = {
     var state_map: (id * int, role * instance_state) fmap
   
@@ -283,8 +265,8 @@ module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
             if (!bad) {
               dec_map.[(a, b), msg3_data a b ca m2, caf] <- witness;
               mo <- Some caf;
-              O.gen(caf);
-              skey <@ O.f(caf, (a, b));
+              O.gen((msg3_data a b ca m2, caf));
+              skey <@ O.f((msg3_data a b ca m2, caf), (a, b));
               state_map.[a, i] <- (Initiator, Accepted (m1, m2, caf) (oget skey));
             }
           } else {
@@ -312,7 +294,7 @@ module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
         | RPending s m1 m2 => {
           (a, psk, na, nb, ca, cb) <- s;
           if(dec_map.[(a, b), msg3_data a b ca cb, m3] is Some nok) {
-            skey <@ O.f(m3, (a, b));
+            skey <@ O.f((msg3_data a b ca cb, m3), (a, b));
             state_map.[b, j] <- (Responder, Accepted (m1, m2, m3) (oget skey));
             mo <- Some tt;
           } else {
@@ -337,13 +319,10 @@ module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
         match st with
         | Accepted trace k' => {
           k <- k';
-          (* Get partners *)
           ps <- get_partners (a, i) (Some trace) role state_map;
           if (card ps <= 1) {
             ps <- get_observed_partners (a, i) state_map;
-            (* If we have no observed partners then, we can test *)
             if (card ps <> 0) {
-              (* If a partner has revealed something, we must use the same key *)
               p <- pick ps;
               (p_role, p_st) <- oget state_map.[p];
               if (p_st is Observed _ p_k) {
@@ -404,46 +383,47 @@ do! congr.
   call (:
         ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
      /\ ={prfkey_map}(Game5, PRFb)
-  )=> //; 1,2,3,6,7: sim />.
-  
+  )=> //; 1,2,3,6,7: by sim />.
+
   - proc; inline*.
     sp; if=> //. 
     sp; match = => //.
     + smt().
     move=> s m1.
-    sp; match; 1,2: smt().
+    sp; match =.
+    + smt().
     + by auto=> />.
-    move=> nbl nbr.
+    move=> nb.
     seq 1 1 : (#pre /\ ={caf}); 1: by auto.
     case (Game5.bad{1}).
     + rcondf {1} ^if; 1: by auto=> />.
       rcondf {2} ^if; 1: by auto=> />.
       by auto=> />.
     sp; if=> //.
-    sp; if{2} => //.
-    + match Some {2} ^match. auto => />. smt(mem_set).
-      auto => /> &1 &2 dmr badr dmnr dmnl smr sml aiin _ nindm ninprfm.
-      smt(get_setE).
-    match Some {2} ^match. auto => />. smt().
-    auto => />. 
-    admit. (* using uniqueness of caf to argue that update on left doesn't happen *)
+    rcondt{2} ^if.
+    + auto=> />.
+      admit. (* caf notin decmap => caf \notin prfkey_map *)
+    match Some {2} ^match.
+    + by auto => />; smt(mem_set).
+    auto => /> 
+    smt(get_setE).
 
    - proc; inline*.
      sp; if=> //. 
      sp; match = => //.
      + smt().
      move=> s m1 m2.
-     sp; match; 1,2: smt().
-     + by auto=> />.
-     move=> nokl nokr.
-     sp 0 3; match{2}.
-     + auto => /> &1 &2 prfn _ _ _ _ _. 
-       congr. rewrite prfn oget_none. 
-       admit. (* axiom that prf with witness as key returns witness? *)
+    sp; match =.
+    + smt().
+    + by auto=> />.
+     move=> nok.
+     match Some {2} ^match.
+     + auto=> />.
+       admit. (* m3 \in decmap => m3 \in prfkey_map *)
      auto => />.
      smt(get_setE).
 
-  auto => />.
+  by auto => />.
 
 byequiv => //.
 proc; inline *.
@@ -459,42 +439,47 @@ call (:
   sp; match = => //.
   + smt().
   move=> s m1.
-  sp; match; 1,2: smt().
+  sp; match =.
+  + smt().
   + by auto=> />.
-  move=> nbl nbr.
+  move=> nb.
   seq 1 1 : (#pre /\ ={caf}); 1: by auto.
   case (Game6.bad{1}).
   + rcondf {1} ^if; 1: by auto=> />.
     rcondf {2} ^if; 1: by auto=> />.
     by auto=> />.
   sp; if=> //.
-  sp; if{2} => //.
-  + match Some {2} ^match. auto => />. smt(mem_set).
-    seq 1 1 : (#pre /\ (na, ok){1} = k{2}). auto => />. admit.
-    sp.
-    seq 1 1 : (#pre /\ skey{1} = y{2}); 1: by auto => />.
-    if => //.
-    - smt(get_setE).
-    - auto => /> &1 &2 prfk _ _ _ _ _ _ _ _ _; smt(get_setE).
-    auto => /> &1 &2 prfk ? ? ? ? ? ? ? _ ? _ _. admit. (* I have stored right key *)
-  match Some {2} ^match. auto => /#.
-  admit.
+  rcondt{2} ^if.
+  + auto=> />.
+    admit. (* caf notin decmap => caf \notin prfkey_map *)
+  match Some {2} ^match.
+  + auto=> />.
+    smt(get_setE). 
+  rcondt{2} ^if.
+  + auto => />.
+    admit. (* m3 \in decmap <=> m3 \in cache *)
+  rcondt{1} ^if.
+  + auto => />.
+    admit. (* m3 \in decmap <=> m3 \in cache *)
+  auto=> />.
+  smt(get_setE).
 
 - proc; inline*.
   sp; if=> //. 
   sp; match = => //.
   + smt().
   move=> s m1 m2.
-  sp; match; 1,2: smt().
+  sp; match =.
+  + smt().
   + by auto=> />.
-  move=> nokl nokr.
-  sp 0 3; match{2}.
-  + auto => /> &1 &2 prfn _ _ _ _ _. 
-    congr. 
-    admit.
-  auto => /> &1 &2 prfk _ _ smr sml bjin y0 _.
-  split. admit.
-  admit.
+  move=> nok.
+  match Some {2} ^match.
+  + auto=> />.
+    admit. (* m3 \in decmap => m3 \in prfkey_map *)
+  rcondf{2} ^if.
+  + auto => />.
+    admit. (* m3 \in decmap => m3 \in cache *)
+  by auto=> />.
 
 auto => />.
 qed.

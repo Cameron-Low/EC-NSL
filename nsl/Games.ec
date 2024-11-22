@@ -263,7 +263,7 @@ module Game5 = Game4 with {
 }.
 
 module Game6 = Game5 with {
-  var cache : ((nonce * nonce) * (id * id), skey) fmap
+  var cache : ((msg_data * ctxt) * (id * id), skey) fmap
   
   proc init_mem [
     -1 + { cache <- empty; }
@@ -272,19 +272,17 @@ module Game6 = Game5 with {
   proc send_msg3 [
     ^if.^match#IPending.^match#Some.^if.^skey<- ~ {
        skey <$ dskey;
-       if (((na, ok), (a, b)) \notin cache) 
-         cache.[((na, ok), (a, b))] <- skey;
+       if (((msg3_data a b ca m2, caf), (a, b)) \notin cache) 
+         cache.[((msg3_data a b ca m2, caf), (a, b))] <- skey;
     }
   ]
 
   proc send_fin [
     ^if.^match#RPending.^match#Some.^skey<- ~ {
-      skey <- oget cache.[((na, nb), (a, b))];
+      skey <- oget cache.[((msg3_data a b ca cb, m3), (a, b))];
     }
   ]
 }.
-
-print Game5.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Game 0 invariants *)

@@ -55,7 +55,7 @@ clone import Aead as AEADc with
 proof *.
 
 clone import PRF as PRFc with 
-  type handle <- ctxt,
+  type handle <- msg_data * ctxt,
   type key    <- nonce * nonce,
   type D      <- ids,
   type R      <- skey, 
