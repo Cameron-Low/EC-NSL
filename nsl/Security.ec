@@ -383,9 +383,28 @@ do! congr.
   call (:
         ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
      /\ ={prfkey_map}(Game5, PRFb)
-  )=> //; 1,2,3,6,7: by sim />.
+     /\ (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map){1}
+  )=> //.
 
-  - proc; inline*.
+  - sim />.
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_send_msg1 _ => //.
+    sim />.
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_send_msg2 _ => //.
+    sim />.
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_send_msg3 _ => //.
+    proc; inline*.
     sp; if=> //. 
     sp; match = => //.
     + smt().
@@ -401,14 +420,18 @@ do! congr.
       by auto=> />.
     sp; if=> //.
     rcondt{2} ^if.
-    + auto=> />.
-      admit. (* caf notin decmap => caf \notin prfkey_map *)
+    + auto=> />. 
+      smt().
     match Some {2} ^match.
     + by auto => />; smt(mem_set).
-    auto => /> 
+    auto => />. 
     smt(get_setE).
 
-   - proc; inline*.
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_send_fin _ => //.
+     proc; inline*.
      sp; if=> //. 
      sp; match = => //.
      + smt().
@@ -419,11 +442,24 @@ do! congr.
      move=> nok.
      match Some {2} ^match.
      + auto=> />.
-       admit. (* m3 \in decmap => m3 \in prfkey_map *)
+       smt().
      auto => />.
      smt(get_setE).
 
-  by auto => />.
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_rev_skey _ => //.
+    sim />.
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_test _ => //.
+    sim />.
+
+  auto => />.
+  smt(emptyE Game5_undef).
 
 byequiv => //.
 proc; inline *.
@@ -432,7 +468,23 @@ call (:
       ={psk_map, state_map, dec_map, bad}(Game6, Red_PRF.WAKE_O)
    /\ ={prfkey_map}(Game6, PRFb)
    /\ ={cache}(Game6, PRF1)
-)=> //; 1,2,3,6,7: sim />. 
+   /\ (forall a b m1 m2 m3, ((a,b), msg3_data a b m1 m2, m3) \in Game6.dec_map <=> (msg3_data a b m1 m2, m3) \in Game6.prfkey_map){1}
+   /\ (forall a b m1 m2 m3, ((a, b), msg3_data a b m1 m2, m3) \in Game6.dec_map <=> ((msg3_data a b m1 m2, m3), (a, b)) \in Game6.cache){1}
+)=> //. 
+
+- sim />.
+
+- proc; inline*. 
+  sp; if => //.
+  auto => />.
+  smt(get_setE).
+
+- proc; inline*.
+  sp; if => //.
+  match = => //.
+  + auto => />. 
+  auto => />.
+  smt(get_setE).
 
 - proc; inline*.
   sp; if=> //. 
@@ -451,16 +503,16 @@ call (:
   sp; if=> //.
   rcondt{2} ^if.
   + auto=> />.
-    admit. (* caf notin decmap => caf \notin prfkey_map *)
+    smt().
   match Some {2} ^match.
   + auto=> />.
     smt(get_setE). 
   rcondt{2} ^if.
   + auto => />.
-    admit. (* m3 \in decmap <=> m3 \in cache *)
+    smt().
   rcondt{1} ^if.
   + auto => />.
-    admit. (* m3 \in decmap <=> m3 \in cache *)
+    smt().
   auto=> />.
   smt(get_setE).
 
@@ -475,13 +527,18 @@ call (:
   move=> nok.
   match Some {2} ^match.
   + auto=> />.
-    admit. (* m3 \in decmap => m3 \in prfkey_map *)
+    smt().
   rcondf{2} ^if.
   + auto => />.
-    admit. (* m3 \in decmap => m3 \in cache *)
+    smt().
   by auto=> />.
 
+- sim />.
+
+- sim />.
+
 auto => />.
+smt(emptyE).
 qed.
 
 (* ------------------------------------------------------------------------------------------ *)

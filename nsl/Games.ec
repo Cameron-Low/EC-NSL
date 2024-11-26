@@ -284,6 +284,46 @@ module Game6 = Game5 with {
   ]
 }.
 
+module Game7 = {
+ include var Game6 [-test]
+
+  proc test(a: id, i: int) : skey option = {
+    var role, st, p_role, p_st, ps, p, k;
+    var ko <- None;
+
+    if ((a, i) \in state_map) {
+      (role, st) <- oget state_map.[(a, i)];
+      match st with
+      | Accepted trace k' => {
+        k <$ dskey;
+        (* Get partners *)
+        ps <- get_partners (a, i) (Some trace) role state_map;
+        if (card ps <= 1) {
+          ps <- get_observed_partners (a, i) state_map;
+          (* If we have no observed partners then, we can test *)
+          if (card ps <> 0) {
+            (* If a partner has revealed something, we must use the same key *)
+            p <- pick ps;
+            (p_role, p_st) <- oget GWAKEb.state_map.[p];
+            if (p_st is Observed _ p_k) {
+              k <- p_k;
+            }
+          }
+          ko <- Some k;
+          state_map.[(a, i)] <- (role, Observed trace k);
+        }
+      }
+      | Observed _ k'  => ko <- Some k';
+      | IPending _ _   => { }
+      | RPending _ _ _ => { }
+      | Aborted        => { }
+      end;
+    }
+    return ko;
+  }
+}.
+
+
 (* ------------------------------------------------------------------------------------------ *)
 (* Game 0 invariants *)
 
