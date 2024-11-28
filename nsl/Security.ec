@@ -371,176 +371,6 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
 
 
-lemma Step5 &m:
-    `|Pr[E_GWAKE(Game5, A).run() @ &m : res] - Pr[E_GWAKE(Game6, A).run() @ &m : res]|
-  = 
-    `|Pr[E_GPRF(PRF0, Red_PRF(A)).run() @ &m : res] - Pr[E_GPRF(PRF1, Red_PRF(A)).run() @ &m : res]|.
-proof.
-do! congr.
-+ byequiv => //.
-  proc; inline*.
-  wp.
-  call (:
-        ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
-     /\ ={prfkey_map}(Game5, PRFb)
-     /\ (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map){1}
-  )=> //.
-
-  - sim />.
-
-  - conseq (: ={res}
-     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
-     /\ ={prfkey_map}(Game5, PRFb)
-    ) Game5_inv_send_msg1 _ => //.
-    sim />.
-
-  - conseq (: ={res}
-     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
-     /\ ={prfkey_map}(Game5, PRFb)
-    ) Game5_inv_send_msg2 _ => //.
-    sim />.
-
-  - conseq (: ={res}
-     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
-     /\ ={prfkey_map}(Game5, PRFb)
-    ) Game5_inv_send_msg3 _ => //.
-    proc; inline*.
-    sp; if=> //. 
-    sp; match = => //.
-    + smt().
-    move=> s m1.
-    sp; match =.
-    + smt().
-    + by auto=> />.
-    move=> nb.
-    seq 1 1 : (#pre /\ ={caf}); 1: by auto.
-    case (Game5.bad{1}).
-    + rcondf {1} ^if; 1: by auto=> />.
-      rcondf {2} ^if; 1: by auto=> />.
-      by auto=> />.
-    sp; if=> //.
-    rcondt{2} ^if.
-    + auto=> />. 
-      smt().
-    match Some {2} ^match.
-    + by auto => />; smt(mem_set).
-    auto => />. 
-    smt(get_setE).
-
-  - conseq (: ={res}
-     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
-     /\ ={prfkey_map}(Game5, PRFb)
-    ) Game5_inv_send_fin _ => //.
-     proc; inline*.
-     sp; if=> //. 
-     sp; match = => //.
-     + smt().
-     move=> s m1 m2.
-    sp; match =.
-    + smt().
-    + by auto=> />.
-     move=> nok.
-     match Some {2} ^match.
-     + auto=> />.
-       smt().
-     auto => />.
-     smt(get_setE).
-
-  - conseq (: ={res}
-     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
-     /\ ={prfkey_map}(Game5, PRFb)
-    ) Game5_inv_rev_skey _ => //.
-    sim />.
-
-  - conseq (: ={res}
-     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
-     /\ ={prfkey_map}(Game5, PRFb)
-    ) Game5_inv_test _ => //.
-    sim />.
-
-  auto => />.
-  smt(emptyE Game5_undef).
-
-byequiv => //.
-proc; inline *.
-wp.
-call (:
-      ={psk_map, state_map, dec_map, bad}(Game6, Red_PRF.WAKE_O)
-   /\ ={prfkey_map}(Game6, PRFb)
-   /\ ={cache}(Game6, PRF1)
-   /\ (forall a b m1 m2 m3, ((a,b), msg3_data a b m1 m2, m3) \in Game6.dec_map <=> (msg3_data a b m1 m2, m3) \in Game6.prfkey_map){1}
-   /\ (forall a b m1 m2 m3, ((a, b), msg3_data a b m1 m2, m3) \in Game6.dec_map <=> ((msg3_data a b m1 m2, m3), (a, b)) \in Game6.cache){1}
-)=> //. 
-
-- sim />.
-
-- proc; inline*. 
-  sp; if => //.
-  auto => />.
-  smt(get_setE).
-
-- proc; inline*.
-  sp; if => //.
-  match = => //.
-  + auto => />. 
-  auto => />.
-  smt(get_setE).
-
-- proc; inline*.
-  sp; if=> //. 
-  sp; match = => //.
-  + smt().
-  move=> s m1.
-  sp; match =.
-  + smt().
-  + by auto=> />.
-  move=> nb.
-  seq 1 1 : (#pre /\ ={caf}); 1: by auto.
-  case (Game6.bad{1}).
-  + rcondf {1} ^if; 1: by auto=> />.
-    rcondf {2} ^if; 1: by auto=> />.
-    by auto=> />.
-  sp; if=> //.
-  rcondt{2} ^if.
-  + auto=> />.
-    smt().
-  match Some {2} ^match.
-  + auto=> />.
-    smt(get_setE). 
-  rcondt{2} ^if.
-  + auto => />.
-    smt().
-  rcondt{1} ^if.
-  + auto => />.
-    smt().
-  auto=> />.
-  smt(get_setE).
-
-- proc; inline*.
-  sp; if=> //. 
-  sp; match = => //.
-  + smt().
-  move=> s m1 m2.
-  sp; match =.
-  + smt().
-  + by auto=> />.
-  move=> nok.
-  match Some {2} ^match.
-  + auto=> />.
-    smt().
-  rcondf{2} ^if.
-  + auto => />.
-    smt().
-  by auto=> />.
-
-- sim />.
-
-- sim />.
-
-auto => />.
-smt(emptyE).
-qed.
-
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 0: Inline procedure calls, and remove pskeys from the state using psk_map to retrieve. *)
 
@@ -681,25 +511,25 @@ call (:
   + move=> tr k tr' k'.
     sp ^if & -1 ^if & -1; if=> //.
     + smt(eq_partners).
-    sp ^if & -1 ^if & -1; if.
-    + move=> /> &1 &2 smr sml eqsm.
+    wp 2 2.
+    conseq (: _ ==> ={k}).
+    + move=> /> &1 &2 + + eqsm invl a_in _.
+      rewrite -(eqsm (a, i){2}).
+      by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
+    sp ^if & -1 ^if & -1.
+    seq 0 0 : (={ps} /\ #pre).
+    + auto=> /> &1 &2 smr sml eqsm.
       by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Game1.state_map{2}).
-    + seq 1 1 : (={ps, p} /\ #pre).
-      + auto=> /> &1 &2 smr sml eqsm.
-        by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Game1.state_map{2}).
-      wp 2 2.
-      conseq (: _ ==> ={k, role} /\ tr = tr').
-      + move=> /> &1 &2 _ + + eqsm invl a_in _ _.
-        rewrite -(eqsm (a, i){2}).
-        by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
-      auto=> /> &1 &2 + + + eqsm invl a_in _ _.
-      rewrite -(eqsm (a, i){2}) -(eqsm p{2}).
-      case: (GWAKEb.state_map{1}.[(a, i){2}])=> />.
-      + by case: (GWAKEb.state_map{1}.[p{2}])=> /#.
-      by case: (GWAKEb.state_map{1}.[p{2}])=> /#.
-    auto=> /> &1 &2 + + eqsm invl a_in _ _.
-    rewrite -(eqsm (a, i){2}).
-    by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
+    if=> //; first last.
+    + auto=> /> &1 &2 _ + + eqsm invl a_in.
+      rewrite -(eqsm (a, i){2}).
+      by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
+    auto=> /> &1 &2 -> + + eqsm invl a_in.
+    pose p:=(pick (get_observed_partners (a{2}, i{2}) GWAKEb.state_map{1})).
+    rewrite -(eqsm (a, i){2}) -(eqsm p).
+    case: (GWAKEb.state_map{1}.[(a, i){2}])=> />.
+    + by case: (GWAKEb.state_map{1}.[p])=> /#.
+    by case: (GWAKEb.state_map{1}.[p])=> /#.
   by auto; smt().
 
 - conseq (: ={res}
@@ -796,17 +626,16 @@ do! congr.
     sp; match = => //. 
     + smt().
     move=> st m1.
-    match Some {2} ^match.
-    + auto=> />.
-      move=> &hr smr sml invl ai_in.
-      by case: (invl a{m0} i{m0})=> /#.
+    exlim Game1.state_map{1}, Game1.psk_map{1}, a{1}, i{1} => sm pm a i.
+    case @[ambient] _: (forall a i, Game1_inv sm pm a i) => [inv|?]; 2: by exfalso => /#. 
+    case @[ambient] _: (inv a i); 1,2,4,5,6: (move=> *; exfalso=> /#).
+    move=> b na c1 kab smai pmab.
+    match Some {2} ^match; 1: by auto=> /#.
     sp; match =.
     + by auto=> /#. 
     + by auto=> /#.
     move=> nb.
-    match Some {2} ^match.
-    + auto=> /> &1 decl decr smr sml invl ai_in ok _.
-      by case: (invl a{m0} i{m0})=> /#.
+    match Some {2} ^match; 1: by auto=> /#.
     by auto=> /#.
 
   - conseq (: ={res}
@@ -816,7 +645,7 @@ do! congr.
     proc; inline.
     sp; if=> //.
     sp; match = => //.
-    + smt().
+    + move=> /#.
     move=> st m1 m2.
     match Some {2} ^match.
     + auto=> />. 
@@ -1290,10 +1119,6 @@ transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); } => //.
      + by auto=> />.
      move=> nbl nbr.
      seq 1 1 : (#pre /\ ={caf}); 1: by auto.
-     case (Game4.bad{1}).
-     + rcondf {1} ^if; 1: by auto=> />.
-       rcondf {2} ^if; 1: by auto=> />.
-       by auto=> />.
      sp; if=> //.
      + smt().
      + rcondt {2} ^if; 1: by auto=> /#.
@@ -1360,13 +1185,7 @@ wp; call (:
   ) _ Game5_inv_send_msg1 => //.
   proc; inline*.
   sp; if=> //.
-  seq 1 1 : (#pre /\ ={ca}); 1: by auto.
-  case (Game5.bad{2}).
-  + rcondf {1} ^if; 1: by auto=> />.
-    rcondf {2} ^if; 1: by auto=> />.
-    auto=> />.
-  sp 1 1; if=> //.
-  auto=> />.
+  by auto=> />.
 
 - conseq (: ={res}
   /\ ={state_map, psk_map, bad, dec_map}(Red_ROM.WAKE_O, Game5)
@@ -1381,16 +1200,7 @@ wp; call (:
   ) _ Game5_inv_send_msg2 => //.
   proc; inline*.
   sp; if=> //.
-  sp; match = => //.
-  + by auto=> />.
-  move=> na.
-  seq 1 1 : (#pre /\ ={cb}); 1: by auto.
-  case (Game5.bad{2}).
-  + rcondf {1} ^if; 1: by auto=> />.
-    rcondf {2} ^if; 1: by auto=> />.
-    auto=> />.
-  sp 1 1; if=> //.
-  auto=> />.
+  by sp; match =; auto=> />.
 
 - conseq (: ={res}
   /\ ={state_map, psk_map, bad, dec_map}(Red_ROM.WAKE_O, Game5)
@@ -1412,21 +1222,17 @@ wp; call (:
   + by auto.
   move=> nb.
   seq 1 1 : (#pre /\ ={caf}); 1: by auto.
-  case (Game5.bad{2}).
-  + rcondf {1} ^if; 1: by auto=> />.
-    rcondf {2} ^if; 1: by auto=> />.
-    auto=> />.
-  sp 1 1; if=> //.
+  sp; if=> //.
   rcondt {1} ^if.
   + auto=> />.
-    move=> &hr _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin _ cafnin r _. 
+    move=> &hr _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin /negb_or [_ cafnin] r _. 
     have sms : (Game5.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){m0} by smt().
     case: (invr5 a{m0} i{m0}) ; rewrite sms //=.
     move=> /> 4!->> _.
     exact inv1.
   rcondt {1} ^if.
   + auto=> />.
-    move=> &hr _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin _ cafnin r _ r1 _. 
+    move=> &hr _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin /negb_or [_ cafnin] r _ r1 _. 
     have sms : (Game5.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){m0} by smt().
     case: (invr5 a{m0} i{m0}) ; rewrite sms //=.
     move=> /> 4!->> _.
@@ -1435,7 +1241,7 @@ wp; call (:
   wp; rewrite equiv [{2} 3 sample_sample2].
   inline*.
   auto=> />.
-  move=> &1 &2 _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin _ cafnin r _ r1 _. 
+  move=> &1 &2 _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin /negb_or [_ cafnin] r _ r1 _. 
   rewrite get_set_sameE //=.
   have smai : (Game5.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){2} by smt().
   case: (invr5 a{2} i{2}); rewrite smai //=.
@@ -1503,4 +1309,169 @@ wp; call (:
 
 auto => />.
 smt(emptyE Game5_undef).
+qed.
+
+(* ------------------------------------------------------------------------------------------ *)
+(* Step 5: Apply the PRF assumption. *)
+
+lemma Step5 &m:
+    `|Pr[E_GWAKE(Game5, A).run() @ &m : res] - Pr[E_GWAKE(Game6, A).run() @ &m : res]|
+  = 
+    `|Pr[E_GPRF(PRF0, Red_PRF(A)).run() @ &m : res] - Pr[E_GPRF(PRF1, Red_PRF(A)).run() @ &m : res]|.
+proof.
+do! congr.
++ byequiv => //.
+  proc; inline*.
+  wp.
+  call (:
+        ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+     /\ (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map){1}
+  )=> //.
+
+  - by sim />.
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_send_msg1 _ => //.
+    by sim />.
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_send_msg2 _ => //.
+    by sim />.
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_send_msg3 _ => //.
+    proc; inline*.
+    sp; if=> //. 
+    sp; match = => //.
+    + smt().
+    move=> s m1.
+    sp; match =.
+    + smt().
+    + by auto=> />.
+    move=> nb.
+    seq 1 1 : (#pre /\ ={caf}); 1: by auto.
+    sp; if=> //.
+    rcondt{2} ^if.
+    + auto=> />. 
+      smt().
+    match Some {2} ^match.
+    + by auto => />; smt(mem_set).
+    auto => />. 
+    smt(get_setE).
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_send_fin _ => //.
+     proc; inline*.
+     sp; if=> //. 
+     sp; match = => //.
+     + smt().
+     move=> s m1 m2.
+     sp; match =.
+     + smt().
+     + by auto=> />.
+     move=> nok.
+     match Some {2} ^match.
+     + auto=> />.
+       smt().
+     auto => />.
+     smt(get_setE).
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_rev_skey _ => //.
+    by sim />.
+
+  - conseq (: ={res}
+     /\ ={psk_map, state_map, dec_map, bad}(Game5, Red_PRF.WAKE_O)
+     /\ ={prfkey_map}(Game5, PRFb)
+    ) Game5_inv_test _ => //.
+    by sim />.
+
+  auto => />.
+  smt(emptyE Game5_undef).
+
+byequiv => //.
+proc; inline *.
+wp.
+call (:
+      ={psk_map, state_map, dec_map, bad}(Game6, Red_PRF.WAKE_O)
+   /\ ={prfkey_map}(Game6, PRFb)
+   /\ ={cache}(Game6, PRF1)
+   /\ (forall a b m1 m2 m3, ((a,b), msg3_data a b m1 m2, m3) \in Game6.dec_map <=> (msg3_data a b m1 m2, m3) \in Game6.prfkey_map){1}
+   /\ (forall a b m1 m2 m3, ((a, b), msg3_data a b m1 m2, m3) \in Game6.dec_map <=> ((msg3_data a b m1 m2, m3), (a, b)) \in Game6.cache){1}
+)=> //. 
+
+- by sim />.
+
+- proc; inline*. 
+  sp; if => //.
+  auto => />.
+  smt(get_setE).
+
+- proc; inline*.
+  sp; if => //.
+  match = => //.
+  + by auto => />. 
+  auto => />.
+  smt(get_setE).
+
+- proc; inline*.
+  sp; if=> //. 
+  sp; match = => //.
+  + smt().
+  move=> s m1.
+  sp; match =.
+  + smt().
+  + by auto=> />.
+  move=> nb.
+  seq 1 1 : (#pre /\ ={caf}); 1: by auto.
+  sp; if=> //.
+  rcondt{2} ^if.
+  + auto=> />.
+    smt().
+  match Some {2} ^match.
+  + auto=> />.
+    smt(get_setE). 
+  rcondt{2} ^if.
+  + auto => />.
+    smt().
+  rcondt{1} ^if.
+  + auto => />.
+    smt().
+  auto=> />.
+  smt(get_setE).
+
+- proc; inline*.
+  sp; if=> //. 
+  sp; match = => //.
+  + smt().
+  move=> s m1 m2.
+  sp; match =.
+  + smt().
+  + by auto=> />.
+  move=> nok.
+  match Some {2} ^match.
+  + auto=> />.
+    smt().
+  rcondf{2} ^if.
+  + auto => />.
+    smt().
+  by auto=> />.
+
+- by sim />.
+
+- by sim />.
+
+auto => />.
+smt(emptyE).
 qed.

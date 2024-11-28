@@ -951,10 +951,8 @@ proof.
 proc; inline *.
 sp; if => //.
 seq 1 : (#pre); 1: by auto.
-case (Game3.bad).
-+ by rcondf ^if; auto=> />.
 sp; if=> //.
-auto => /> &m _ inv ainin abin _ uniq na _ a' i'.
+auto => /> &m _ inv ainin abin /negb_or [_ uniq] na _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
 + by apply (Game3_ipending _ _ _ _ b{m} na ca{m} witness); rewrite get_set_sameE.
 exact /Game3_inv_neq_sm/Game3_inv_neq_dm/inv.
@@ -971,10 +969,8 @@ sp; match.
 + auto => /> &m decn st inv bjnin abin a' i'.
   exact /Game3_inv_aborted/inv.
 seq 1 : (#pre); 1: by auto.
-case (Game3.bad).
-+ by rcondf ^if; auto=> />.
 sp; if=> //.
-auto => /> &m _ decn st inv bjnin abin _ bad n _ a' i'.
+auto => /> &m _ decn st inv bjnin abin /negb_or [_ bad] n _ a' i'.
 case ((a', i') = (b, j){m}) => /> => [|neq_ai].
 + apply (Game3_rpending _ _ _ _ a{m} na{m} n ca{m} cb{m} witness).
   - by rewrite get_set_sameE.
@@ -995,10 +991,8 @@ sp; match.
 + auto => /> &m decn st inv abin a' i'.
   exact /Game3_inv_aborted/inv.
 seq 1 : (#pre); 1: by auto.
-case (Game3.bad).
-+ by rcondf ^if; auto=> />.
 sp; if=> //.
-auto => /> &m _ decn st inv aiin _ bad ok _ a' i'.
+auto => /> &m _ decn st inv aiin /negb_or [_ bad] ok _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
 + apply (Game3_accepted _ _ _ _ Initiator (m1{m}, m2{m}, caf{m}) (prf (na{m}, nb{m}) (a{m}, b{m}))).
   by rewrite get_set_sameE.
@@ -1204,10 +1198,8 @@ sp; match => //.
   move=> b j.
   exact /Game5_inv_aborted/inv5.
 seq 1 : (#pre); 1: by auto.
-case (Game5.bad).
-+ by rcondf ^if; auto=> />.
 auto=> />.
-move=> &m dm sm inv1 inv2 inv3 inv4 inv5 bjnin abin _ cbnin.
+move=> &m dm sm inv1 inv2 inv3 inv4 inv5 bjnin abin /negb_or [_ cbnin].
 split; 1: smt(get_setE).
 move=> b j.
 case: ((b, j) = (b, j){!m}) => /> => [|neq_ai].
@@ -1231,11 +1223,9 @@ sp; match => //.
   move=> a i.
   exact /Game5_inv_aborted/inv5.
 seq 1 : (#pre); 1: by auto.
-case (Game5.bad).
-+ by rcondf ^if; auto=> />.
 sp; if=> //.
 auto=> />.
-move=> &m _ dm sm inv1 inv2 inv3 inv4 inv5 /domE aiin _ cafnin ns _.
+move=> &m _ dm sm inv1 inv2 inv3 inv4 inv5 /domE aiin /negb_or [_ cafnin] ns _.
 split; 1: smt(get_setE).
 move=> a' i'.
 case: ((a', i') = (a, i){m}) => /> => [|neq_ai].
