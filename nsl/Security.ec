@@ -1,5 +1,6 @@
-require import AllCore FSet FMap Distr DProd PROM NSL Games.
+require import AllCore FSet FMap List Distr DProd PROM NSL Games.
 import GWAKEc AEADc PRFc.
+require Birthday.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Reductions *)
@@ -353,13 +354,41 @@ module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
   }
 }.
 
-    
+(* ------------------------------------------------------------------------------------------ *)
+(* Ctxt Collision Reduction *)
+
+clone Birthday as BD with
+  type T <- ctxt,
+  op uT <- dctxt.
+
+module Red_Coll_O_WAKE (S : BD.ASampler) = Game2 with {
+  proc send_msg1 [
+    ^if.^ca<$ ~ {ca <@ S.s();}
+  ]
+
+  proc send_msg2 [
+    ^if.^match#Some.^cb<$ ~ {cb <@ S.s();}
+  ]
+
+  proc send_msg3 [
+    ^if.^match#IPending.^match#Some.^caf<$ ~ { caf <@ S.s(); }
+  ]
+}.
+
+module (Red_Coll (A : A_GWAKE) : BD.Adv) (S : BD.ASampler) = {
+  proc a() = {
+    var b;
+    Red_Coll_O_WAKE(S).init_mem();
+    b <@ A(Red_Coll_O_WAKE(S)).run();
+  }
+}.
+
 (* ------------------------------------------------------------------------------------------ *)
 (* Security Proof *)
 (* ------------------------------------------------------------------------------------------ *)
 section.
 
-declare module A <: A_GWAKE {-GWAKE0, -Game1, -Game2, -Game3, -Game4, -Game5, -Game6, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD, -Red_ROM, -Red_PRF, -RO, -FRO}.
+declare module A <: A_GWAKE {-GWAKE0, -Game1, -Game2, -Game3, -Game4, -Game5, -Game6, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD, -Red_Coll, -Red_ROM, -Red_PRF, -RO, -FRO, -BD.Sample}.
 
 declare axiom A_ll:
 forall (GW <: GWAKE_out{-A}),
@@ -370,6 +399,73 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.send_fin =>
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
 
+(* TODO: Bound queries to send_oracles instead of BD.q *)
+declare axiom A_bounded_qs: forall (GW <: GWAKE_out{-A}), hoare[A(GW).run: size BD.Sample.l = 0 ==> size BD.Sample.l <= BD.q].
+
+(* ------------------------------------------------------------------------------------------ *)
+(* Step 2b: Bound the bad event. *)
+lemma Step2b &m: Pr[E_GWAKE(Game2, A).run() @ &m : Game2.bad] <= (BD.q ^ 2)%r * mu1 dctxt (mode dctxt).
+proof.
+apply (StdOrder.RealOrder.ler_trans Pr[BD.Exp(BD.Sample, Red_Coll(A)).main() @ &m : ! uniq BD.Sample.l]); first last.
++ apply (BD.pr_collision_q2 (Red_Coll(A))).
+  + move => S S_ll.
+    islossless.
+    apply (A_ll (Red_Coll_O_WAKE(S))); islossless.
+    + by match; auto; islossless.
+    + match; auto. 
+      by sp; match; auto; islossless.
+    + match => //.
+      by sp; match; auto; islossless.
+    + match => //; islossless.
+      by match; islossless.
+    match => //; islossless.
+    by match; islossless.
+  proc; inline.
+  call (A_bounded_qs (Red_Coll_O_WAKE(BD.Sample))).
+  by auto.
+byequiv => //.
+proc; inline.
+call (:
+ ={state_map, psk_map, bad, dec_map}(Game2, Red_Coll_O_WAKE(BD.Sample))
+ /\ (Game2.bad{1} => !uniq BD.Sample.l{2})
+ /\ (forall pk ad c, (pk, ad, c) \in Game2.dec_map{1} => c \in BD.Sample.l{2})
+) => //.
+
++ by sim />.
+
++ proc; inline.
+  sp; if=> //.
+  auto=> />.
+  smt(mem_set).
+
++ proc; inline.
+  sp; if=> //.
+  sp; match = => //.
+  + by auto => />.
+  move=> na.
+  auto=> />.
+  smt(mem_set).
+
++ proc; inline.
+  sp; if=> //.
+  sp; match = => //.
+  + by auto=> /#.
+  move=> s m1.
+  sp; match = => //.
+  + by auto.
+  move=> nb.
+  auto=> />.
+  smt(mem_set).
+
++ by sim />.
+
++ by sim />.
+
+by sim />.
+
+auto=> />.
+smt(emptyE).
+qed.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 0: Inline procedure calls, and remove pskeys from the state using psk_map to retrieve. *)
@@ -467,7 +563,7 @@ call (:
   move=> sil m1l sir m1r.
   sp; match =.
   + auto=> />.
-    move=> &1 &2 smr sml inv_sm invl ai_in.
+    move=> &1 &2 smr sml inv_sm invl sms.
     case: (invl a{2} i{2})=> /#.
   + match None {1} ^match; auto; smt(get_setE).
   move=> nb.
@@ -774,18 +870,19 @@ qed.
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 2: Remove collisions of all produced ciphertexts. *)
 
-lemma Step2 &m: `| Pr[E_GWAKE(Game2, A).run() @ &m : res] - Pr[E_GWAKE(Game3, A).run() @ &m : res] | <= Pr[E_GWAKE(Game3, A).run() @ &m : Game3.bad].
+lemma Step2 &m: `| Pr[E_GWAKE(Game2, A).run() @ &m : res] - Pr[E_GWAKE(Game3, A).run() @ &m : res] | <= Pr[E_GWAKE(Game2, A).run() @ &m : Game2.bad].
 proof.
-byequiv (: _ ==> _) : Game2.bad => //; first last.
+rewrite StdOrder.RealOrder.distrC.
+byequiv (: _ ==> _) : Game3.bad => //; first last.
 + move=> &1 &2.
-  by case: (Game3.bad{2}).
-proc; inline*.
+  by case: (Game2.bad{2}).
+symmetry; proc; inline*.
 call (: Game3.bad, ={bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}(Game2, Game3)) => //.
 + exact A_ll.
 
 + by proc; inline*; auto; if; auto.
 + move=> &2 ->.
-  proc; sp; if; auto.
+  proc; sp; if; auto=> />.
   by rewrite dpskey_ll.  
 + move=> &1.
   proc; sp; if; auto.
@@ -989,8 +1086,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
   + by auto; smt(get_setE).
   move=> nok.
   auto=> />.
-  move=> &1 &2 <- dm smr sml inv invl aiin h.
-  by case: (invl b{2} j{2}); smt(get_setE).
+  move=> &1 &2 <- dm smr sml inv /(_ b{2} j{2}) []; smt(get_setE).
 
 - conseq (: ={res}
     /\ ={psk_map, bad, dec_map}(Game3, Game4)
@@ -1225,15 +1321,15 @@ wp; call (:
   sp; if=> //.
   rcondt {1} ^if.
   + auto=> />.
-    move=> &hr _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin /negb_or [_ cafnin] r _. 
-    have sms : (Game5.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){m0} by smt().
-    case: (invr5 a{m0} i{m0}) ; rewrite sms //=.
+    move=> &hr _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 /domE/some_oget sms /negb_or [_ cafnin] r _. 
+    rewrite -sm in sms.
+    case: (invr5 a{m0} i{m0}); rewrite sms //=.
     move=> /> 4!->> _.
     exact inv1.
   rcondt {1} ^if.
   + auto=> />.
-    move=> &hr _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin /negb_or [_ cafnin] r _ r1 _. 
-    have sms : (Game5.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){m0} by smt().
+    move=> &hr _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 /domE/some_oget sms /negb_or [_ cafnin] r _ r1 _. 
+    rewrite -sm in sms.
     case: (invr5 a{m0} i{m0}) ; rewrite sms //=.
     move=> /> 4!->> _.
     rewrite mem_set /#.
@@ -1241,10 +1337,10 @@ wp; call (:
   wp; rewrite equiv [{2} 3 sample_sample2].
   inline*.
   auto=> />.
-  move=> &1 &2 _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 aiin /negb_or [_ cafnin] r _ r1 _. 
+  move=> &1 &2 _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 /domE/some_oget sms /negb_or [_ cafnin] r _ r1 _. 
   rewrite get_set_sameE //=.
-  have smai : (Game5.state_map.[(a, i)] = Some (role, IPending (b, psk, na, ca) m1)){2} by smt().
-  case: (invr5 a{2} i{2}); rewrite smai //=.
+  rewrite -sm in sms.
+  case: (invr5 a{2} i{2}); rewrite sms //=.
   smt(get_setE).
 
 - conseq (: ={res}
@@ -1268,14 +1364,14 @@ wp; call (:
   move=> nok.
   rcondf {1} ^if.
   + auto=> />.
-    move=> &hr dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 bjin r _.
-    have sms : (Game5.state_map.[(b, j)] = Some (role, RPending (a, psk, na, nb, ca, cb) m1 m2)){m0} by smt().
+    move=> &hr dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 /domE/some_oget sms r _.
+    rewrite -sm in sms.
     case: (invr5 b{m0} j{m0}) ; rewrite sms //=.
     smt().
   rcondf {1} ^if.
   + auto=> />.
-    move=> &hr dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 bjin r _ r2 _.
-    have sms : (Game5.state_map.[(b, j)] = Some (role, RPending (a, psk, na, nb, ca, cb) m1 m2)){m0} by smt().
+    move=> &hr dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 /domE/some_oget sms r _ r2 _.
+    rewrite -sm in sms.
     case: (invr5 b{m0} j{m0}) ; rewrite sms //=.
     smt().
   auto=> />.
