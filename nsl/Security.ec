@@ -357,38 +357,40 @@ module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
 (* ------------------------------------------------------------------------------------------ *)
 (* Ctxt Collision Reduction *)
 
-op q_m1, q_m2, q_m3 : int.
+op q_m1 : { int | 0 <= q_m1 } as ge0_q_m1.
+op q_m2 : { int | 0 <= q_m2 } as ge0_q_m2.
+op q_m3 : { int | 0 <= q_m3 } as ge0_q_m3.
 clone Birthday as BD with
   type T <- ctxt,
   op uT <- dctxt,
   op q <- q_m1 + q_m2 + q_m3
   proof*.
-realize ge0_q by admit.
+realize ge0_q by smt(ge0_q_m1 ge0_q_m2 ge0_q_m3).
 
 module Counter (W : GWAKE_out) : GWAKE_out_i = {
-  var c : int
+  var cm1, cm2, cm3 : int
 
   include W[send_fin, gen_pskey, test, rev_skey]
 
   proc init_mem() = {
-    c <- 0;
+    (cm1, cm2, cm3) <- (0, 0, 0);
   }
   
   proc send_msg1(x) = {
     var m;
-    c <- c + 1;
+    cm1 <- cm1 + 1;
     m <@ W.send_msg1(x);
     return m;
   }
   proc send_msg2(x) = {
     var m;
-    c <- c + 1;
+    cm2 <- cm2 + 1;
     m <@ W.send_msg2(x);
     return m;
   }
   proc send_msg3(x) = {
     var m;
-    c <- c + 1;
+    cm3 <- cm3 + 1;
     m <@ W.send_msg3(x);
     return m;
   }
@@ -433,7 +435,7 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.send_fin =>
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
 
-declare axiom A_bounded_qs: forall (GW <: GWAKE_out{-A}), hoare[A(Counter(GW)).run: Counter.c = 0  ==> Counter.c <= q_m1 + q_m2 + q_m3].
+declare axiom A_bounded_qs: forall (GW <: GWAKE_out{-A}), hoare[A(Counter(GW)).run: Counter.cm1 = 0 /\ Counter.cm2 = 0 /\ Counter.cm3 = 0 ==> Counter.cm1 + Counter.cm2 + Counter.cm3 <= q_m1 + q_m2 + q_m3].
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 2b: Bound the bad event. *)
@@ -455,10 +457,32 @@ apply (StdOrder.RealOrder.ler_trans Pr[BD.Exp(BD.Sample, Red_Coll(A)).main() @ &
     by match; islossless.
   proc; inline.
   sp.
-  conseq (: _ ==> size BD.Sample.l <= Counter.c) (: Counter.c = 0 ==> Counter.c <= q_m1 + q_m2 + q_m3)=> //.
+  conseq (: _ ==> size BD.Sample.l <= Counter.cm1 + Counter.cm2 + Counter.cm3) (: Counter.cm1 = 0 /\ Counter.cm2 = 0 /\ Counter.cm3 = 0 ==> Counter.cm1 + Counter.cm2 + Counter.cm3 <= q_m1 + q_m2 + q_m3)=> //.
   + smt().
   + by call (A_bounded_qs (Red_Coll_O_WAKE(BD.Sample))).
-  admit.
+  call (: size BD.Sample.l <= Counter.cm1 + Counter.cm2 + Counter.cm3) => //.
+  + proc; inline*; if; auto.
+  + proc; inline*; sp; if => //; auto => /#.
+  + proc; inline*.
+    sp; if => //.
+    + case ((Red_Coll_O_WAKE.dec_map.[(a, b), msg1_data a b, ca]) = None).
+      + match None ^match => //. 
+        auto => /#.
+      match Some ^match => //; auto => /#.
+    auto => /#.
+  + proc; inline*.
+    sp; if => //.
+    + sp; match; 2,3,4,5: auto => /#.
+      case ((Red_Coll_O_WAKE.dec_map.[(a, s.`1), msg2_data a s.`1 s.`4, m2]) = None).
+      + match None ^match => //.  
+        + by auto => />.
+        by auto => /#.
+      by match Some ^match => //; auto => /#.
+    auto => /#.
+  + proc; inline*; auto => /#.
+  + proc; inline*; auto => /#.
+  + proc; inline*; auto => /#.
+  auto => /#.
 byequiv => //.
 proc; inline.
 call (:
