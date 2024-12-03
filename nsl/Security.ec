@@ -357,9 +357,42 @@ module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
 (* ------------------------------------------------------------------------------------------ *)
 (* Ctxt Collision Reduction *)
 
+op q_m1, q_m2, q_m3 : int.
 clone Birthday as BD with
   type T <- ctxt,
-  op uT <- dctxt.
+  op uT <- dctxt,
+  op q <- q_m1 + q_m2 + q_m3
+  proof*.
+realize ge0_q by admit.
+
+module Counter (W : GWAKE_out) : GWAKE_out_i = {
+  var c : int
+
+  include W[send_fin, gen_pskey, test, rev_skey]
+
+  proc init_mem() = {
+    c <- 0;
+  }
+  
+  proc send_msg1(x) = {
+    var m;
+    c <- c + 1;
+    m <@ W.send_msg1(x);
+    return m;
+  }
+  proc send_msg2(x) = {
+    var m;
+    c <- c + 1;
+    m <@ W.send_msg2(x);
+    return m;
+  }
+  proc send_msg3(x) = {
+    var m;
+    c <- c + 1;
+    m <@ W.send_msg3(x);
+    return m;
+  }
+}.
 
 module Red_Coll_O_WAKE (S : BD.ASampler) = Game2 with {
   proc send_msg1 [
@@ -379,7 +412,8 @@ module (Red_Coll (A : A_GWAKE) : BD.Adv) (S : BD.ASampler) = {
   proc a() = {
     var b;
     Red_Coll_O_WAKE(S).init_mem();
-    b <@ A(Red_Coll_O_WAKE(S)).run();
+    Counter(Red_Coll_O_WAKE(S)).init_mem();
+    b <@ A(Counter(Red_Coll_O_WAKE(S))).run();
   }
 }.
 
@@ -399,18 +433,17 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.send_fin =>
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
 
-(* TODO: Bound queries to send_oracles instead of BD.q *)
-declare axiom A_bounded_qs: forall (GW <: GWAKE_out{-A}), hoare[A(GW).run: size BD.Sample.l = 0 ==> size BD.Sample.l <= BD.q].
+declare axiom A_bounded_qs: forall (GW <: GWAKE_out{-A}), hoare[A(Counter(GW)).run: Counter.c = 0  ==> Counter.c <= q_m1 + q_m2 + q_m3].
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 2b: Bound the bad event. *)
-lemma Step2b &m: Pr[E_GWAKE(Game2, A).run() @ &m : Game2.bad] <= (BD.q ^ 2)%r * mu1 dctxt (mode dctxt).
+lemma Step2b &m: Pr[E_GWAKE(Game2, A).run() @ &m : Game2.bad] <= ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt).
 proof.
 apply (StdOrder.RealOrder.ler_trans Pr[BD.Exp(BD.Sample, Red_Coll(A)).main() @ &m : ! uniq BD.Sample.l]); first last.
 + apply (BD.pr_collision_q2 (Red_Coll(A))).
   + move => S S_ll.
     islossless.
-    apply (A_ll (Red_Coll_O_WAKE(S))); islossless.
+    apply (A_ll (Counter(Red_Coll_O_WAKE(S)))); islossless.
     + by match; auto; islossless.
     + match; auto. 
       by sp; match; auto; islossless.
@@ -421,8 +454,11 @@ apply (StdOrder.RealOrder.ler_trans Pr[BD.Exp(BD.Sample, Red_Coll(A)).main() @ &
     match => //; islossless.
     by match; islossless.
   proc; inline.
-  call (A_bounded_qs (Red_Coll_O_WAKE(BD.Sample))).
-  by auto.
+  sp.
+  conseq (: _ ==> size BD.Sample.l <= Counter.c) (: Counter.c = 0 ==> Counter.c <= q_m1 + q_m2 + q_m3)=> //.
+  + smt().
+  + by call (A_bounded_qs (Red_Coll_O_WAKE(BD.Sample))).
+  admit.
 byequiv => //.
 proc; inline.
 call (:
@@ -434,12 +470,11 @@ call (:
 + by sim />.
 
 + proc; inline.
-  sp; if=> //.
-  auto=> />.
+  sp; if=> //; auto=> />.
   smt(mem_set).
 
 + proc; inline.
-  sp; if=> //.
+  sp; if=> //; 2: by auto=> />.
   sp; match = => //.
   + by auto => />.
   move=> na.
@@ -447,10 +482,9 @@ call (:
   smt(mem_set).
 
 + proc; inline.
-  sp; if=> //.
-  sp; match = => //.
+  sp; if=> //; 2: by auto=> />.
+  sp; match =; auto=> />.
   + by auto=> /#.
-  move=> s m1.
   sp; match = => //.
   + by auto.
   move=> nb.
