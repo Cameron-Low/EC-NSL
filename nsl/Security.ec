@@ -435,7 +435,7 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.send_fin =>
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
 
-declare axiom A_bounded_qs: forall (GW <: GWAKE_out{-A}), hoare[A(Counter(GW)).run: Counter.cm1 = 0 /\ Counter.cm2 = 0 /\ Counter.cm3 = 0 ==> Counter.cm1 + Counter.cm2 + Counter.cm3 <= q_m1 + q_m2 + q_m3].
+declare axiom A_bounded_qs: forall (GW <: GWAKE_out{-A}), hoare[A(Counter(GW)).run: Counter.cm1 = 0 /\ Counter.cm2 = 0 /\ Counter.cm3 = 0 ==> Counter.cm1 <= q_m1 /\ Counter.cm2 <= q_m2 /\ Counter.cm3 <= q_m3].
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 2b: Bound the bad event. *)
@@ -457,7 +457,7 @@ apply (StdOrder.RealOrder.ler_trans Pr[BD.Exp(BD.Sample, Red_Coll(A)).main() @ &
     by match; islossless.
   proc; inline.
   sp.
-  conseq (: _ ==> size BD.Sample.l <= Counter.cm1 + Counter.cm2 + Counter.cm3) (: Counter.cm1 = 0 /\ Counter.cm2 = 0 /\ Counter.cm3 = 0 ==> Counter.cm1 + Counter.cm2 + Counter.cm3 <= q_m1 + q_m2 + q_m3)=> //.
+  conseq (: _ ==> size BD.Sample.l <= Counter.cm1 + Counter.cm2 + Counter.cm3) (: Counter.cm1 = 0 /\ Counter.cm2 = 0 /\ Counter.cm3 = 0 ==> Counter.cm1 <= q_m1 /\ Counter.cm2 <= q_m2 /\ Counter.cm3 <= q_m3)=> //.
   + smt().
   + by call (A_bounded_qs (Red_Coll_O_WAKE(BD.Sample))).
   call (: size BD.Sample.l <= Counter.cm1 + Counter.cm2 + Counter.cm3) => //.
