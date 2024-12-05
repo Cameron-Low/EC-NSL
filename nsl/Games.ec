@@ -139,12 +139,11 @@ module Game2 = Game1 with {
   var bad : bool
   
   proc init_mem [
-    -1 + { dec_map <- empty; },
-    -1 + { bad <- false; }
+    -1 + { dec_map <- empty; bad <- false; }
   ]
   
   proc send_msg1 [
-    ^if.^na<$ -,
+    ^if.^na<$ -
     ^if.^ca<$ ~ {
       ca <$ dctxt;
       bad <- bad \/ exists pk ad, (pk, ad, ca) \in dec_map;
@@ -154,8 +153,8 @@ module Game2 = Game1 with {
   ]
 
   proc send_msg2 [
-    ^if.^match ~ (dec_map.[((a, b), msg1_data a b, ca)]),
-    ^if.^match#Some.^nb<$ -,
+    ^if.^match ~ (dec_map.[((a, b), msg1_data a b, ca)])
+    ^if.^match#Some.^nb<$ -
     ^if.^match#Some.^cb<$ ~ {
       cb <$ dctxt;
       bad <- bad \/ exists pk ad, (pk, ad, cb) \in dec_map;
@@ -165,8 +164,8 @@ module Game2 = Game1 with {
   ]
 
   proc send_msg3 [
-    ^if.^match#IPending.^match ~ (dec_map.[((a, b), msg2_data a b ca, m2)]),
-    ^if.^match#IPending.^match#Some.^ok<$ -,
+    ^if.^match#IPending.^match ~ (dec_map.[((a, b), msg2_data a b ca, m2)])
+    ^if.^match#IPending.^match#Some.^ok<$ -
     ^if.^match#IPending.^match#Some.^caf<$ ~ {
       caf <$ dctxt;
       bad <- bad \/ exists pk ad, (pk, ad, caf) \in dec_map;
@@ -230,28 +229,29 @@ module Game5 = Game4 with {
   ]
 
   proc send_msg1 [
-    ^if.^if.^na<$ -,
+    ^if.^if.^na<$ -
     ^if.^if.^dec_map<- ~ {
       dec_map.[((a, b), msg1_data a b, ca)] <- witness;
     }
   ]
 
   proc send_msg2 [
-    ^if.^match#Some.^if.^nb<$ -,
+    ^if.^match#Some.^if.^nb<$ -
     ^if.^match#Some.^if.^dec_map<- ~ {
       dec_map.[((a, b), msg2_data a b ca, cb)] <- witness;
     }
   ]
 
   proc send_msg3 [
-    ^if.^match#IPending.^match#Some.^if.^ok<$ -,
+    var nb' : nonce
+    ^if.^match#IPending.^match#Some.^if.^ok<$ -
     ^if.^match#IPending.^match#Some.^if.^dec_map<- ~ {
       dec_map.[((a, b), msg3_data a b ca m2, caf)] <- witness;
-    },
+    }
     ^if.^match#IPending.^match#Some.^if.^skey<- ~ { 
-      (na, ok) <$ dnonce `*` dnonce;
-      prfkey_map.[(msg3_data a b ca m2, caf)] <- (na, ok);
-      skey <- prf (na, ok) (a, b);
+      (na, nb') <$ dnonce `*` dnonce;
+      prfkey_map.[(msg3_data a b ca m2, caf)] <- (na, nb');
+      skey <- prf (na, nb') (a, b);
     } 
   ]
 

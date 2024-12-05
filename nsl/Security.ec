@@ -161,7 +161,7 @@ module (Red_ROM (D : A_GWAKE) : RO_Distinguisher) (O : RO) = {
       ^if.^match#IPending.^match#Some.^if.^ok<$ ~ {
         ok <- witness;
         O.sample((msg3_data a b ca m2, caf));
-      },
+      }
       ^if.^match#IPending.^match#Some.^if.^skey<- ~ {
         na <@ O.get((msg1_data a b, ca));
         ok <@ O.get((msg2_data a b ca, m2));
@@ -1391,7 +1391,7 @@ wp; call (:
     case: (invr5 a{m0} i{m0}) ; rewrite sms //=.
     move=> /> 4!->> _.
     rewrite mem_set /#.
-  outline {2} [3] (na, ok) <@ S.sample. 
+  outline {2} [3] (na, nb') <@ S.sample. 
   wp; rewrite equiv [{2} 3 sample_sample2].
   inline*.
   auto=> />.
