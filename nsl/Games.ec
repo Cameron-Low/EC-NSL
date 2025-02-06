@@ -472,7 +472,7 @@ proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
 sp; if => //.
-wp 2.
+wp ^if.
 conseq (: _ ==> true); last by auto.
 auto => /> &m st inv aiin _ k a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -490,7 +490,7 @@ proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
 sp; if => //.
-wp 2.
+wp ^if.
 conseq (: _ ==> true); last by auto.
 auto => /> &m st inv aiin _ k a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -662,7 +662,7 @@ proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
 sp; if => //.
-wp 3.
+wp ^if.
 conseq (: _ ==> true); last by auto.
 move=> /> &m st inv aiin _ k a' i'.
 case ((a', i') = (a, i){m}) => [[] <<- <-|neq_ai].
@@ -680,7 +680,7 @@ proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
 sp; if => //.
-wp 3.
+wp ^if.
 conseq (: _ ==> true); last by auto.
 move=> /> &m st inv aiin _ k a' i'.
 case ((a', i') = (a, i){m}) => [[] <<- <-|neq_ai].
@@ -967,7 +967,7 @@ proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
 sp; if => //.
-wp 3.
+wp ^if.
 conseq (: _ ==> true); last by auto.
 move=> /> &m st inv aiin _ k a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -985,7 +985,7 @@ proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
 sp; if => //.
-wp 3.
+wp ^if.
 conseq (: _ ==> true); last by auto.
 move=> /> &m st inv aiin _ k a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -1121,7 +1121,8 @@ case: ((a, i) = (a, i){!m}) => /> => [| neq].
 + apply (Game5_ipending _ _ _ _ _ b{m} ca{m}).
   + by rewrite get_set_sameE.
   + by rewrite mem_set.
-  smt().
+  move=> c2 c3.
+  by rewrite inv4 /#.
 exact /Game5_inv_neq_sm/Game5_inv_neq_dm/inv5.
 qed.
 
@@ -1141,7 +1142,7 @@ sp; match => //.
 seq 1 : (#pre); 1: by auto.
 auto=> />.
 move=> &m dm sm inv1 inv2 inv3 inv4 inv5 bjnin abin /negb_or [_ cbnin].
-split; 1: smt(get_setE).
+split; 1: smt(mem_set get_setE).
 move=> b j.
 case: ((b, j) = (b, j){!m}) => /> => [|neq_ai].
 - apply (Game5_rpending _ _ _ _ _ a{m} ca{m} cb{m}).
@@ -1167,7 +1168,7 @@ seq 1 : (#pre); 1: by auto.
 sp; if=> //.
 auto=> />.
 move=> &m _ dm sm inv1 inv2 inv3 inv4 inv5 /domE aiin /negb_or [_ cafnin] ns _.
-split; 1: smt(get_setE).
+split; 1: smt(mem_set get_setE).
 move=> a' i'.
 case: ((a', i') = (a, i){m}) => /> => [|neq_ai].
 - apply (Game5_accepted _ _ _ _ _ Initiator ((a, ca), m2, caf){m} (prf (ns.`1, ns.`2) (a, b)){!m}).
@@ -1228,7 +1229,7 @@ proc.
 sp; if=> //.
 sp; match => //; 2: by auto.
 sp; if=> //.
-wp 3.
+wp ^if.
 conseq (: _ ==> true); last by auto.
 auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ k.
 split; 1: smt(get_setE).
@@ -1248,7 +1249,7 @@ proc.
 sp; if=> //.
 sp; match => //; 2: by auto.
 sp; if=> //.
-wp 3.
+wp ^if.
 conseq (: _ ==> true); last by auto.
 auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ k.
 split; 1: smt(get_setE).
