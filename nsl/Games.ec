@@ -99,7 +99,7 @@ module Game1 = {
   }
 
   proc rev_skey(a, i) = {
-    var role, st, p_role, p_st, ps, p, k;
+    var role, st, ps, k;
     var ko <- None;
  
     if ((a, i) \in state_map) {
@@ -108,20 +108,15 @@ module Game1 = {
       | Accepted trace k' => {
         ps <- get_partners (a, i) (Some trace) role state_map;
         if (card ps <= 1) {
-          k <- k';
           ps <- get_observed_partners (a, i) state_map;
-          if (card ps <> 0) {
-            p <- pick ps;
-            (p_role, p_st) <- oget state_map.[p];
-            if (p_st is Observed _ p_k) {
-              k <- p_k;
-            }
+          if (card ps = 0) {
+            k <- k';
+            ko <- Some k;
+            state_map.[(a, i)] <- (role, Observed trace k);
           }
-          ko <- Some k;
-          state_map.[(a, i)] <- (role, Observed trace k);
         }
       }
-      | Observed _ k'  => ko <- Some k';
+      | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
       | Aborted        => { }
@@ -283,6 +278,8 @@ module Game6 = Game5 with {
   ]
 }.
 
+print Game6.
+
 module Game7 = Game6 with {
   proc send_msg3 [
     ^if.^match#IPending.^match#Some.^if.^sk_map<- + { skey <- witness; }
@@ -291,7 +288,7 @@ module Game7 = Game6 with {
     ^if.^match#RPending.^match#Some.^skey<- ~ { skey <- witness; }
   ]
   proc rev_skey [
-    ^if.^match#Accepted.^if.^k<- ~ {
+    ^if.^match#Accepted.^if.^if.^k<- ~ {
       k <- oget sk_map.[trace];
     } 
   ]
@@ -299,7 +296,7 @@ module Game7 = Game6 with {
 
 module Game8 = Game7 with {
   proc test [
-    ^if.^match#Accepted.^if.^k<- ~ { k <$ dskey; }
+    ^if.^match#Accepted.^if.^if.^k<- ~ { k <$ dskey; }
   ]
 }.
 (* ------------------------------------------------------------------------------------------ *)
@@ -471,12 +468,9 @@ proof.
 proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //.
-wp ^if.
-conseq (: _ ==> true); last by auto.
-auto => /> &m st inv aiin _ k a' i'.
+auto => /> &m st inv aiin _ _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-- apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k).
+- apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
 exact /GWAKE0_inv_neq/inv.
 qed.
@@ -489,12 +483,9 @@ proof.
 proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //.
-wp ^if.
-conseq (: _ ==> true); last by auto.
-auto => /> &m st inv aiin _ k a' i'.
+auto => /> &m st inv aiin _ _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-- apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k).
+- apply (GWAKE0_observed _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
 exact /GWAKE0_inv_neq/inv.
 qed.
@@ -661,12 +652,9 @@ proof.
 proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //.
-wp ^if.
-conseq (: _ ==> true); last by auto.
-move=> /> &m st inv aiin _ k a' i'.
-case ((a', i') = (a, i){m}) => [[] <<- <-|neq_ai].
-- apply (Game1_observed _ _ _ _ role{m} trace{m} k).
+auto => /> &m st inv aiin _ _ a' i'.
+case ((a', i') = (a, i){m}) => /> => [|neq_ai].
+- apply (Game1_observed _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
 exact /Game1_inv_neq/inv.
 qed.
@@ -679,12 +667,9 @@ proof.
 proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //.
-wp ^if.
-conseq (: _ ==> true); last by auto.
-move=> /> &m st inv aiin _ k a' i'.
-case ((a', i') = (a, i){m}) => [[] <<- <-|neq_ai].
-- apply (Game1_observed _ _ _ _ role{m} trace{m} k).
+auto => /> &m st inv aiin _ _ a' i'.
+case ((a', i') = (a, i){m}) => /> => [|neq_ai].
+- apply (Game1_observed _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
 exact /Game1_inv_neq/inv.
 qed.
@@ -966,13 +951,10 @@ proof.
 proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //.
-wp ^if.
-conseq (: _ ==> true); last by auto.
-move=> /> &m st inv aiin _ k a' i'.
+auto => /> &m st inv aiin _ _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-- apply (Game3_observed _ _ _ _ role{m} trace{m} k).
-  by rewrite get_set_sameE. 
+- apply (Game3_observed _ _ _ _ role{m} trace{m} k'{m}).
+  by rewrite get_set_sameE.
 exact /Game3_inv_neq_sm/inv.
 qed.
 
@@ -984,13 +966,10 @@ proof.
 proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //.
-wp ^if.
-conseq (: _ ==> true); last by auto.
-move=> /> &m st inv aiin _ k a' i'.
+auto => /> &m st inv aiin _ _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-- apply (Game3_observed _ _ _ _ role{m} trace{m} k).
-  by rewrite get_set_sameE. 
+- apply (Game3_observed _ _ _ _ role{m} trace{m} k'{m}).
+  by rewrite get_set_sameE.
 exact /Game3_inv_neq_sm/inv.
 qed.
 
@@ -1226,18 +1205,15 @@ hoare Game5_inv_rev_skey: Game5.rev_skey:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).
 proof.
 proc.
-sp; if=> //.
-sp; match => //; 2: by auto.
-sp; if=> //.
-wp ^if.
-conseq (: _ ==> true); last by auto.
-auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ k.
+sp; if => //.
+sp; match; 1,2,4,5: by auto.
+auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ _.
 split; 1: smt(get_setE).
 move=> a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-- apply (Game5_observed _ _ _ _ _ role{m} trace{m} k).
+- apply (Game5_observed _ _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
-exact /Game5_inv_neq_sm/inv5. 
+exact /Game5_inv_neq_sm/inv5.
 qed.
 
 hoare Game5_inv_test: Game5.test:
@@ -1246,16 +1222,13 @@ hoare Game5_inv_test: Game5.test:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).
 proof.
 proc.
-sp; if=> //.
-sp; match => //; 2: by auto.
-sp; if=> //.
-wp ^if.
-conseq (: _ ==> true); last by auto.
-auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ k.
+sp; if => //.
+sp; match; 1,2,4,5: by auto.
+auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ _.
 split; 1: smt(get_setE).
 move=> a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-- apply (Game5_observed _ _ _ _ _ role{m} trace{m} k).
+- apply (Game5_observed _ _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
-exact /Game5_inv_neq_sm/inv5. 
+exact /Game5_inv_neq_sm/inv5.
 qed.

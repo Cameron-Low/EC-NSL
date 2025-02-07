@@ -190,32 +190,26 @@ module GWAKEb (P : AKE_Scheme) = {
   }
 
   proc rev_skey(a: id, i: int) : key option = {
-    var role, st, p_role, p_st, ps, p, k;
+    var role, st, ps, k;
     var ko <- None;
 
     if ((a, i) \in state_map) {
       (role, st) <- oget state_map.[(a, i)];
       match st with
       | Accepted trace k' => {
-        k <- k';
         (* Get partners *)
         ps <- get_partners (a, i) (Some trace) role state_map;
         if (card ps <= 1) {
           ps <- get_observed_partners (a, i) state_map;
           (* If we have no observed partners then, we can test *)
-          if (card ps <> 0) {
-            (* If a partner has revealed something, we must use the same key *)
-            p <- pick ps;
-            (p_role, p_st) <- oget GWAKEb.state_map.[p];
-            if (p_st is Observed _ p_k) {
-              k <- p_k;
-            }
+          if (card ps = 0) {
+            k <- k';
+            ko <- Some k;
+            state_map.[(a, i)] <- (role, Observed trace k);
           }
-          ko <- Some k;
-          state_map.[(a, i)] <- (role, Observed trace k);
         }
       }
-      | Observed _ k'  => ko <- Some k';
+      | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
       | Aborted        => { }
@@ -235,32 +229,26 @@ module GWAKE1 (P : AKE_Scheme) : GWAKE_out_i = {
   include var GWAKEb(P)
 
   proc test(a: id, i: int) : key option = {
-    var role, st, p_role, p_st, ps, p, k;
+    var role, st, ps, k;
     var ko <- None;
 
     if ((a, i) \in state_map) {
       (role, st) <- oget state_map.[(a, i)];
       match st with
       | Accepted trace k' => {
-        k <$ dkey;
         (* Get partners *)
         ps <- get_partners (a, i) (Some trace) role state_map;
         if (card ps <= 1) {
           ps <- get_observed_partners (a, i) state_map;
           (* If we have no observed partners then, we can test *)
-          if (card ps <> 0) {
-            (* If a partner has revealed something, we must use the same key *)
-            p <- pick ps;
-            (p_role, p_st) <- oget GWAKEb.state_map.[p];
-            if (p_st is Observed _ p_k) {
-              k <- p_k;
-            }
+          if (card ps = 0) {
+            k <$ dkey;
+            ko <- Some k;
+            state_map.[(a, i)] <- (role, Observed trace k);
           }
-          ko <- Some k;
-          state_map.[(a, i)] <- (role, Observed trace k);
         }
       }
-      | Observed _ k'  => ko <- Some k';
+      | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
       | Aborted        => { }

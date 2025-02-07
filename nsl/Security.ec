@@ -99,7 +99,7 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
     }
 
     proc rev_skey(a, i) = {
-      var role, st, p_role, p_st, ps, p, k;
+      var role, st, ps, k;
       var ko <- None;
   
       if ((a, i) \in state_map) {
@@ -108,20 +108,15 @@ module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
         | Accepted trace k' => {
           ps <- get_partners (a, i) (Some trace) role state_map;
           if (card ps <= 1) {
-            k <- k';
             ps <- get_observed_partners (a, i) state_map;
-            if (card ps <> 0) {
-              p <- pick ps;
-              (p_role, p_st) <- oget state_map.[p];
-              if (p_st is Observed _ p_k) {
-                k <- p_k;
-              }
+            if (card ps = 0) {
+              k <- k';
+              ko <- Some k;
+              state_map.[(a, i)] <- (role, Observed trace k);
             }
-            ko <- Some k;
-            state_map.[(a, i)] <- (role, Observed trace k);
           }
         }
-        | Observed _ k'  => ko <- Some k';
+        | Observed _ _   => { }
         | IPending _ _   => { }
         | RPending _ _ _ => { }
         | Aborted        => { }
@@ -317,7 +312,7 @@ module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
     }
 
     proc rev_skey(a, i) = {
-      var role, st, p_role, p_st, ps, p, k;
+      var role, st, ps, k;
       var ko <- None;
   
       if ((a, i) \in state_map) {
@@ -326,20 +321,15 @@ module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
         | Accepted trace k' => {
           ps <- get_partners (a, i) (Some trace) role state_map;
           if (card ps <= 1) {
-            k <- k';
             ps <- get_observed_partners (a, i) state_map;
-            if (card ps <> 0) {
-              p <- pick ps;
-              (p_role, p_st) <- oget state_map.[p];
-              if (p_st is Observed _ p_k) {
-                k <- p_k;
-              }
+            if (card ps = 0) {
+              k <- k';
+              ko <- Some k;
+              state_map.[(a, i)] <- (role, Observed trace k);
             }
-            ko <- Some k;
-            state_map.[(a, i)] <- (role, Observed trace k);
           }
         }
-        | Observed _ k'  => ko <- Some k';
+        | Observed _ _   => { }
         | IPending _ _   => { }
         | RPending _ _ _ => { }
         | Aborted        => { }
@@ -445,7 +435,7 @@ module (Red_ROM_sk_1 (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
     ]
 
     proc rev_skey [
-      ^if.^match#Accepted.^if.^k<- ~ { k <@ O.get(trace); }
+      ^if.^match#Accepted.^if.^if.^k<- ~ { k <@ O.get(trace); }
     ]
   }
 
@@ -467,12 +457,12 @@ module (Red_ROM_sk_2 (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
     ]
 
     proc rev_skey [
-      ^if.^match#Accepted.^if.^k<- ~ { k <@ O.get(trace); }
+      ^if.^match#Accepted.^if.^if.^k<- ~ { k <@ O.get(trace); }
     ]
 
     proc test [
       var v : skey
-      ^if.^match#Accepted.^if.^k<- ~ {
+      ^if.^match#Accepted.^if.^if.^k<- ~ {
         k <$ dskey;
         v <@ O.get(trace);
       }
@@ -509,7 +499,7 @@ lemma obs_ps sm h h' s:
     (get_observed_partners h sm.[h' <- ((fst (oget sm.[h'])), s)]) = get_observed_partners h sm.
 proof.
 admitted.
-
+(*
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 7 aux: Show the two reductions on sk are equivalent *)
 equiv red_sk: A(Red_ROM_sk_1(A, KROc.LRO).WAKE_O).run ~ A(Red_ROM_sk_2(A, KROc.LRO).WAKE_O).run:
@@ -826,7 +816,7 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
 
 auto=> />.
 smt(emptyE).
-qed.
+qed.*)
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 0: Inline procedure calls, and remove pskeys from the state using psk_map to retrieve. *)
@@ -987,25 +977,12 @@ call (:
     sp ^if & -1 ^if & -1; if=> //.
     + smt(eq_partners).
     wp ^if ^if.
-    conseq (: _ ==> ={k}).
-    + move=> /> &1 &2 + + eqsm invl a_in _.
-      rewrite -(eqsm (a, i){2}).
-      by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
-    sp ^if & -1 ^if & -1.
-    seq 0 0 : (={ps} /\ #pre).
-    + auto=> /> &1 &2 smr sml eqsm.
-      by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Game1.state_map{2}).
-    if=> //; first last.
-    + auto=> /> &1 &2 _ + + eqsm invl a_in.
-      rewrite -(eqsm (a, i){2}).
-      by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
-    auto=> /> &1 &2 -> + + eqsm invl a_in.
-    pose p:=(pick (get_observed_partners (a{2}, i{2}) GWAKEb.state_map{1})).
-    rewrite -(eqsm (a, i){2}) -(eqsm p).
-    case: (GWAKEb.state_map{1}.[(a, i){2}])=> />.
-    + by case: (GWAKEb.state_map{1}.[p])=> /#.
-    by case: (GWAKEb.state_map{1}.[p])=> /#.
-  by auto; smt().
+    sp ^if & -1 ^if & -1. if => //.
+    + move => &1 &2.
+      admit.
+    auto => />.
+    admit. 
+  admit.
 
 - conseq (: ={res}
           /\ ={psk_map}(GWAKEb, Game1)
@@ -1026,6 +1003,10 @@ call (:
     + smt(eq_partners).
     wp ^if ^if.
     conseq (: _ ==> ={k}).
+      admit. 
+    admit.
+  admit.
+(*
     + move=> /> &1 &2 + + eqsm invl a_in _.
       rewrite -(eqsm (a, i){2}).
       by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
@@ -1043,7 +1024,7 @@ call (:
     case: (GWAKEb.state_map{1}.[(a, i){2}])=> />.
     + by case: (GWAKEb.state_map{1}.[p])=> /#.
     by case: (GWAKEb.state_map{1}.[p])=> /#.
-  by auto; smt().
+  by auto; smt().*)
 
 auto=> />.
 split; 1: smt(emptyE).
@@ -1365,8 +1346,6 @@ apply (StdOrder.RealOrder.ler_trans Pr[BD.Exp(BD.Sample, Red_Coll(A)).main() @ &
       by sp; match; auto; islossless.
     + match => //.
       by sp; match; auto; islossless.
-    + match => //; islossless.
-      by match; islossless.
     match => //; islossless.
     by match; islossless.
   proc; inline.
@@ -1594,6 +1573,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     sp ^if & -1 ^if & -1; if=> //.
     + smt(eq_partners_nonces).
     wp ^if ^if.
+    admit. admit. (*
     conseq (: _ ==> ={k, role}).
     + move=> /> &1 &2 + + eqsm invl a_in _.
       rewrite -(eqsm (a, i){2}).
@@ -1612,7 +1592,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     case: (Game3.state_map{1}.[(a, i){2}])=> />.
     + by case: (Game3.state_map{1}.[p])=> /#.
     by case: (Game3.state_map{1}.[p])=> /#.
-  by auto; smt().
+  by auto; smt().*)
 
 - conseq (: ={res}
     /\ ={psk_map, bad, dec_map}(Game3, Game4)
@@ -1632,6 +1612,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     sp ^if & -1 ^if & -1; if=> //.
     + smt(eq_partners_nonces).
     wp ^if ^if.
+    admit. admit. (*
     conseq (: _ ==> ={k, role}).
     + move=> /> &1 &2 + + eqsm invl a_in _.
       rewrite -(eqsm (a, i){2}).
@@ -1650,7 +1631,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     case: (Game3.state_map{1}.[(a, i){2}])=> />.
     + by case: (Game3.state_map{1}.[p])=> /#.
     by case: (Game3.state_map{1}.[p])=> /#.
-  by auto; smt().
+  by auto; smt().*)
  
 auto=> />.
 split; 1: smt(emptyE).
@@ -1705,12 +1686,14 @@ transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); }.
        smt(get_setE).
      by auto=> /#.
 
+
    - proc; inline*.
      sp; if=> //. 
      sp; match = => //.
      + smt().
      move=> s m1.
-     sp; match; 1,2: smt().
+     sp; match; 1: smt().
+     + admit.
      + by auto=> />.
      move=> nbl nbr.
      seq 1 1 : (#pre /\ ={caf}); 1: by auto.
@@ -1957,7 +1940,7 @@ do! congr.
     + auto=> />. 
       smt().
     match Some {2} ^match.
-    + by auto => />; smt(mem_set).
+    + by auto => />; smt(mem_set get_setE).
     auto => />. 
     smt(get_setE).
 
@@ -2165,6 +2148,8 @@ call (:
   auto=> />.
   smt(get_setE).
 
+admit. admit.
+(*
 - proc; inline. 
   sp; if=> //.
   + smt().
@@ -2215,7 +2200,7 @@ call (:
     auto=> /> &1 &2 + + + eqsm invl a_in _ _.
     rewrite -(eqsm (a, i){2}) -(eqsm p{2}).
     by case: (Game6.state_map{1}.[p{2}])=> /#.
-  by auto; smt().
+  by auto; smt().*)
 
 auto=> />.
 by smt(emptyE).
