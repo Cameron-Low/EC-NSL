@@ -972,17 +972,22 @@ call (:
     case: (GWAKEb.state_map{1}.[(a, i)]{2})=> />;
     move=> + H;
     by rewrite -H => /#
-  ); 1,2,5: by auto.
-  + move=> tr k tr' k'.
-    sp ^if & -1 ^if & -1; if=> //.
-    + smt(eq_partners).
-    wp ^if ^if.
-    sp ^if & -1 ^if & -1. if => //.
-    + move => &1 &2.
-      admit.
-    auto => />.
-    admit. 
-  admit.
+  ); 1,2,4,5: by auto.
+  move=> tr k tr' k'.
+  sp ^if & -1 ^if & -1; if=> //.
+  + smt(eq_partners).
+  sp ^if & -1 ^if & -1; if=> //.
+  + move => &1 &2 [] /> *.
+    by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Game1.state_map{2}) => //.
+  auto=> /> &1 &2 + + eqsm invl a_in _.
+  rewrite -(eqsm (a, i){2}).
+  move => *.
+  split. smt().
+  move => h.
+  case (h = (a, i){2}) => [|hneq].
+  smt(get_set_sameE). 
+  do rewrite get_set_neqE => //. rewrite eqsm => //.
+
 
 - conseq (: ={res}
           /\ ={psk_map}(GWAKEb, Game1)
@@ -997,34 +1002,21 @@ call (:
     case: (GWAKEb.state_map{1}.[(a, i)]{2})=> />;
     move=> + H;
     by rewrite -H => /#
-  ); 1,2,5: by auto.
-  + move=> tr k tr' k'.
-    sp ^if & -1 ^if & -1; if=> //.
-    + smt(eq_partners).
-    wp ^if ^if.
-    conseq (: _ ==> ={k}).
-      admit. 
-    admit.
-  admit.
-(*
-    + move=> /> &1 &2 + + eqsm invl a_in _.
-      rewrite -(eqsm (a, i){2}).
-      by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
-    sp ^if & -1 ^if & -1.
-    seq 0 0 : (={ps} /\ #pre).
-    + auto=> /> &1 &2 smr sml eqsm.
-      by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Game1.state_map{2}).
-    if=> //; first last.
-    + auto=> /> &1 &2 _ + + eqsm invl a_in.
-      rewrite -(eqsm (a, i){2}).
-      by case: (GWAKEb.state_map{1}.[(a, i){2}]); smt(get_setE).
-    auto=> /> &1 &2 -> + + eqsm invl a_in.
-    pose p:=(pick (get_observed_partners (a{2}, i{2}) GWAKEb.state_map{1})).
-    rewrite -(eqsm (a, i){2}) -(eqsm p).
-    case: (GWAKEb.state_map{1}.[(a, i){2}])=> />.
-    + by case: (GWAKEb.state_map{1}.[p])=> /#.
-    by case: (GWAKEb.state_map{1}.[p])=> /#.
-  by auto; smt().*)
+  ); 1,2,4,5: by auto.
+  move=> tr k tr' k'.
+  sp ^if & -1 ^if & -1; if=> //.
+  + smt(eq_partners).
+  sp ^if & -1 ^if & -1; if=> //.
+  + move => &1 &2 [] /> *.
+    by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Game1.state_map{2}) => //.
+  auto=> /> &1 &2 + + eqsm invl a_in _.
+  rewrite -(eqsm (a, i){2}).
+  move => *.
+  split. smt().
+  move => h.
+  case (h = (a, i){2}) => [|hneq].
+  smt(get_set_sameE). 
+  do rewrite get_set_neqE => //. rewrite eqsm => //.
 
 auto=> />.
 split; 1: smt(emptyE).
@@ -1562,37 +1554,27 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
   proc; inline. 
   sp; if=> //.
   + smt().
-  sp; match; 1..5: (
+  sp; match; 1..5:(
     move=> &1 &2 /> + + /(_ (a, i){2});
     rewrite domE;
     case: (Game3.state_map{1}.[(a, i)]{2})=> />;
     move=> + H;
     by rewrite -H => /#
-  ); 1,2,5: by auto.
-  + move=> tr k tr' k'.
-    sp ^if & -1 ^if & -1; if=> //.
-    + smt(eq_partners_nonces).
-    wp ^if ^if.
-    admit. admit. (*
-    conseq (: _ ==> ={k, role}).
-    + move=> /> &1 &2 + + eqsm invl a_in _.
-      rewrite -(eqsm (a, i){2}).
-      by case: (Game3.state_map{1}.[(a, i){2}]); smt(get_setE).
-    sp ^if & -1 ^if & -1.
-    seq 0 0 : (={ps} /\ #pre).
-    + auto=> /> &1 &2 smr sml eqsm.
-      by rewrite (eq_obs_partners_nonces (a, i){2} Game3.state_map{1} Game4.state_map{2}).
-    if=> //; first last.
-    + auto=> /> &1 &2 _ + + eqsm invl a_in.
-      rewrite -(eqsm (a, i){2}).
-      by case: (Game3.state_map{1}.[(a, i){2}]); smt(get_setE).
-    auto=> /> &1 &2 -> + + eqsm invl a_in.
-    pose p := (pick (get_observed_partners (a{2}, i{2}) Game3.state_map{1})).
-    rewrite -(eqsm (a, i){2}) -(eqsm p).
-    case: (Game3.state_map{1}.[(a, i){2}])=> />.
-    + by case: (Game3.state_map{1}.[p])=> /#.
-    by case: (Game3.state_map{1}.[p])=> /#.
-  by auto; smt().*)
+  ); 1,2,4,5: by auto.
+  move=> tr k tr' k'.
+  sp ^if & -1 ^if & -1; if=> //.
+  + smt(eq_partners_nonces).
+  sp ^if & -1 ^if & -1; if=> //.
+  + move => &1 &2 [] /> *.
+    by rewrite (eq_obs_partners_nonces (a, i){2} Game3.state_map{1} Game4.state_map{2}) => //.
+  auto=> /> &1 &2 + + eqsm invl a_in _.
+  rewrite -(eqsm (a, i){2}).
+  move => *.
+  split. smt().
+  move => h.
+  case (h = (a, i){2}) => [|hneq].
+  smt(get_set_sameE). 
+  do rewrite get_set_neqE => //. rewrite eqsm => //.
 
 - conseq (: ={res}
     /\ ={psk_map, bad, dec_map}(Game3, Game4)
@@ -1601,37 +1583,27 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
   proc; inline. 
   sp; if=> //.
   + smt().
-  sp; match; 1..5: (
+  sp; match; 1..5:(
     move=> &1 &2 /> + + /(_ (a, i){2});
     rewrite domE;
     case: (Game3.state_map{1}.[(a, i)]{2})=> />;
     move=> + H;
     by rewrite -H => /#
-  ); 1,2,5: by auto.
-  + move=> tr k tr' k'.
-    sp ^if & -1 ^if & -1; if=> //.
-    + smt(eq_partners_nonces).
-    wp ^if ^if.
-    admit. admit. (*
-    conseq (: _ ==> ={k, role}).
-    + move=> /> &1 &2 + + eqsm invl a_in _.
-      rewrite -(eqsm (a, i){2}).
-      by case: (Game3.state_map{1}.[(a, i){2}]); smt(get_setE).
-    sp ^if & -1 ^if & -1.
-    seq 0 0 : (={ps} /\ #pre).
-    + auto=> /> &1 &2 smr sml eqsm.
-      by rewrite (eq_obs_partners_nonces (a, i){2} Game3.state_map{1} Game4.state_map{2}).
-    if=> //; first last.
-    + auto=> /> &1 &2 _ + + eqsm invl a_in.
-      rewrite -(eqsm (a, i){2}).
-      by case: (Game3.state_map{1}.[(a, i){2}]); smt(get_setE).
-    auto=> /> &1 &2 -> + + eqsm invl a_in.
-    pose p := (pick (get_observed_partners (a{2}, i{2}) Game3.state_map{1})).
-    rewrite -(eqsm (a, i){2}) -(eqsm p).
-    case: (Game3.state_map{1}.[(a, i){2}])=> />.
-    + by case: (Game3.state_map{1}.[p])=> /#.
-    by case: (Game3.state_map{1}.[p])=> /#.
-  by auto; smt().*)
+  ); 1,2,4,5: by auto.
+  move=> tr k tr' k'.
+  sp ^if & -1 ^if & -1; if=> //.
+  + smt(eq_partners_nonces).
+  sp ^if & -1 ^if & -1; if=> //.
+  + move => &1 &2 [] /> *.
+    by rewrite (eq_obs_partners_nonces (a, i){2} Game3.state_map{1} Game4.state_map{2}) => //.
+  auto=> /> &1 &2 + + eqsm invl a_in _.
+  rewrite -(eqsm (a, i){2}).
+  move => *.
+  split. smt().
+  move => h.
+  case (h = (a, i){2}) => [|hneq].
+  smt(get_set_sameE). 
+  do rewrite get_set_neqE => //. rewrite eqsm => //.
  
 auto=> />.
 split; 1: smt(emptyE).
@@ -1686,14 +1658,13 @@ transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); }.
        smt(get_setE).
      by auto=> /#.
 
-
    - proc; inline*.
      sp; if=> //. 
      sp; match = => //.
      + smt().
      move=> s m1.
      sp; match; 1: smt().
-     + admit.
+     + move => /> *; smt().
      + by auto=> />.
      move=> nbl nbr.
      seq 1 1 : (#pre /\ ={caf}); 1: by auto.
@@ -2148,59 +2119,47 @@ call (:
   auto=> />.
   smt(get_setE).
 
-admit. admit.
-(*
 - proc; inline. 
   sp; if=> //.
   + smt().
-  sp; match; 1..5: smt(); 1,2,5: by auto.
-  + move=> tr k tr' k'.
-    sp ^if & -1 ^if & -1; if=> //.
-    + smt(eq_partners_sk).
-    wp ^if ^if.
-    conseq (: _ ==> ={k}).
-    + move=> /> &1 &2 + + eqsm. 
-      rewrite -(eqsm (a, i){2}).
-      by case: (Game6.state_map{1}.[(a, i){2}]); smt(get_setE).
-    seq 1 1 : (={k} /\ #pre).
-    + by auto=> />; smt().
-    sp 1 1.
-    seq 0 0 : (={ps} /\ #pre).
-    + auto=> /> &1 &2 smr sml eqsm.
-      by rewrite (eq_obs_partners_sk (a, i){2} Game6.state_map{1} Game7.state_map{2}).
-    if=> //.
-    seq 1 1 : (={p} /\ #pre).
-    + by auto=> />.
-    auto=> /> &1 &2 + + + eqsm invl a_in _ _.
-    rewrite -(eqsm (a, i){2}) -(eqsm p{2}).
-    by case: (Game6.state_map{1}.[p{2}])=> /#.
-  by auto; smt().
+  sp; match; 1..5: smt(); 1,2,4,5: by auto.
+  move=> tr k tr' k'.
+  sp ^if & -1 ^if & -1; if=> //.
+  + smt(eq_partners_sk).
+  sp ^if & -1 ^if & -1; if=> //.
+  + move => &1 &2 [] /> *.
+    by rewrite (eq_obs_partners_sk (a, i){2} Game6.state_map{1} Game7.state_map{2}) => //.
+  auto=> /> &1 &2 + + eqsm invl a_in _.
+  rewrite -(eqsm (a, i){2}).
+  move => *.
+  split. smt().
+  split.
+  move => h.
+  case (h = (a, i){2}) => [|hneq].
+  smt(get_set_sameE). 
+  do rewrite get_set_neqE => //. rewrite eqsm => //.
+  smt(get_setE).
 
 - proc; inline. 
   sp; if=> //.
   + smt().
-  sp; match; 1..5: smt(); 1,2,5: by auto.
-  + move=> tr k tr' k'.
-    sp ^if & -1 ^if & -1; if=> //.
-    + smt(eq_partners_sk).
-    wp ^if ^if.
-    conseq (: _ ==> ={k}).
-    + move=> /> &1 &2 + + eqsm. 
-      rewrite -(eqsm (a, i){2}).
-      by case: (Game6.state_map{1}.[(a, i){2}]); smt(get_setE).
-    seq 1 1 : (={k} /\ #pre).
-    + by auto=> />; smt().
-    sp 1 1.
-    seq 0 0 : (={ps} /\ #pre).
-    + auto=> /> &1 &2 smr sml eqsm.
-      by rewrite (eq_obs_partners_sk (a, i){2} Game6.state_map{1} Game7.state_map{2}).
-    if=> //.
-    seq 1 1 : (={p} /\ #pre).
-    + by auto=> />.
-    auto=> /> &1 &2 + + + eqsm invl a_in _ _.
-    rewrite -(eqsm (a, i){2}) -(eqsm p{2}).
-    by case: (Game6.state_map{1}.[p{2}])=> /#.
-  by auto; smt().*)
+  sp; match; 1..5: smt(); 1,2,4,5: by auto.
+  move=> tr k tr' k'.
+  sp ^if & -1 ^if & -1; if=> //.
+  + smt(eq_partners_sk).
+  sp ^if & -1 ^if & -1; if=> //.
+  + move => &1 &2 [] /> *.
+    by rewrite (eq_obs_partners_sk (a, i){2} Game6.state_map{1} Game7.state_map{2}) => //.
+  auto=> /> &1 &2 + + eqsm invl a_in _.
+  rewrite -(eqsm (a, i){2}).
+  move => *.
+  split. smt().
+  split.
+  move => h.
+  case (h = (a, i){2}) => [|hneq].
+  smt(get_set_sameE). 
+  do rewrite get_set_neqE => //. rewrite eqsm => //.
+  smt(get_setE).
 
 auto=> />.
 by smt(emptyE).
