@@ -499,7 +499,7 @@ lemma obs_ps sm h h' s:
     (get_observed_partners h sm.[h' <- ((fst (oget sm.[h'])), s)]) = get_observed_partners h sm.
 proof.
 admitted.
-(*
+
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 7 aux: Show the two reductions on sk are equivalent *)
 equiv red_sk: A(Red_ROM_sk_1(A, KROc.LRO).WAKE_O).run ~ A(Red_ROM_sk_2(A, KROc.LRO).WAKE_O).run:
@@ -508,32 +508,33 @@ equiv red_sk: A(Red_ROM_sk_1(A, KROc.LRO).WAKE_O).run ~ A(Red_ROM_sk_2(A, KROc.L
   /\ Red_ROM_sk_1.WAKE_O.state_map{1} = empty
  ==>
   ={res}. 
+
 proc( 
     ={state_map, psk_map, dec_map, bad, prfkey_map, sk_map}(Red_ROM_sk_1.WAKE_O, Red_ROM_sk_2.WAKE_O)
     /\ (forall t, t \in KROc.RO.m{1} <=> t \in KROc.RO.m{2})
     /\ (forall h r tr k, Red_ROM_sk_1.WAKE_O.state_map.[h] = Some (r, Accepted tr k) => 
-                       tr \notin Red_ROM_sk_1.WAKE_O.sk_map =>
-                       card (get_observed_partners h Red_ROM_sk_1.WAKE_O.state_map) = 0
+                       card (get_observed_partners h Red_ROM_sk_1.WAKE_O.state_map) = 0 =>
+                       tr \notin KROc.RO.m 
     ){1}
 )=> //.
 
 - smt(emptyE).
 
-- by sim />.  
+- by sim />.
 
 - proc; inline*. 
   sp; if => //.
   seq 1 1 : (#pre /\ ={ca}); 1: by auto.
   sp 1 1; if => //.
-  auto => />.
+  auto => /> *.
   admit.
 
 - proc; inline*.
   sp; if => //.
   match = => //.
-  + auto => />. 
+  + auto => /> *. 
     admit.
-  auto => />.
+  auto => /> *.
   admit.
 
 - proc; inline*.
@@ -543,12 +544,12 @@ proc(
   move=> s m1.
   sp; match =.
   + smt().
-  + auto=> />.
+  + auto=> /> *.
     admit.
   move=> nb.
   seq 1 1 : (#pre /\ ={caf}); 1: by auto.
   sp; if=> //.
-  auto=> />.
+  auto=> /> *.
   admit.
 
 - proc; inline*.
@@ -558,73 +559,74 @@ proc(
   move=> s m1 m2. 
   sp; match =.
   + smt().
-  + auto=> />.
+  + auto=> /> &1 &2 ? ? ? ? ? ? ? h r tr k.
+    case (h = (b, j){2}) => eqh. 
+    + smt(get_set_sameE).
+    rewrite get_set_neqE //=.  
     admit.
   move=> nok.
-  auto=> />.
+  auto=> /> *.
   admit.
 
 - proc.
   sp; if=> //.
-  sp; match = => //; last first.
-  + auto.
+  sp; match = => //.
   + smt().
   move=> tr k'.
   sp; if=> //.
   + smt().
   inline.
-  sp; seq 1 1 : (={r} /\ #pre); 1: by auto.
-  if=> //.
+  sp; if => //.
+  sp; seq 1 1 : (={r} /\ #pre); 1: by auto => />.
+  if => //.
   + smt().
-  + sp; if=> //.
-    + exfalso=> />.
-      admit.
-    auto=> />. 
-    admit.
-  sp; if=> //; last first.
-  + exfalso=> />.
-    admit.
-  sp.
-  match Observed {1} ^match.
-  + auto=> />. 
-    admit. 
-  match Observed {2} ^match.
-  + auto=> />. 
-    smt().
-  auto=> />.
-  admit.
-
+  + auto => /> &1 &2 *. 
+    split. smt(get_setE).
+    split. smt(get_setE).
+    split. smt(get_setE mem_set).
+    move => h r0 tr0 k0.
+    rewrite get_set_sameE => /=.
+    case (h = (a, i){2}).
+    + smt(get_setE).
+    move => hneqai.
+    rewrite get_set_neqE => //=.
+    case (tr0 = tr).
+    + case (r0 <> role{1}).
+      + rewrite /get_observed_partners.
+        rewrite /get_partners filter_set get_set_neqE => //=.
+        move => rneq <- -> /=.
+        rewrite eq_sym in hneqai.
+        rewrite eq_sym in rneq.
+        rewrite hneqai rneq /=.
+        rewrite fdom_set filterU filter1 /= get_set_sameE /=.
+        rewrite /(\o) /=.
+        smt(@FSet).
+      admit. (* Should not be possible - unique trace for same role *)
+    rewrite /get_observed_partners.
+    rewrite /get_partners filter_set get_set_neqE => //=.
+    move => rneq -> /=.
+    rewrite eq_sym in hneqai.
+    rewrite eq_sym in rneq.
+    admit. (* What happens to get_partners when adding things to the state *)
+  exfalso=> />.
+  smt().
+ 
 - proc.
   sp; if=> //.
-  sp; match = => //; last first.
-  + auto.
+  sp; match = => //.
   + smt().
   move=> tr k'.
   sp; if=> //.
   + smt().
   inline.
-  swap {2} ^r<$ @ 1. 
-  swap {2} ^x<- @ 1. 
-  sp; seq 1 2 : (r{1} = k{2} /\ #pre); 1: by auto.
-  if=> //.
+  sp; if => //.
+  swap {2} [^x<- .. ^r<$] @ ^k<$.
+  sp; seq 1 2 : (r{1} = k{2} /\ #pre); 1: by auto => />.
+  if => //.
   + smt().
-  + sp; if=> //.
-    + exfalso=> />.
-      admit.
-    auto=> />. 
-    admit.
-  sp; if=> //; last first.
-  + exfalso=> />.
-    admit.
-  sp.
-  match Observed {1} ^match.
-  + auto=> />. 
-    admit. 
-  match Observed {2} ^match.
-  + auto=> />. 
-    smt().
-  auto=> />.
-  admit.
+  + auto => />. admit. (* smt(get_setE). *)
+  exfalso=> />.
+  smt(). (* Invariant that if no observed partner, no key has been sampled *)
 
 qed.
 
@@ -689,39 +691,25 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_1(A), KROc.RO).distinguish(); }.
 
   - proc; inline*. 
     sp; if => //.
-    sp; match = => //; last by auto.
+    sp; match = => //.
     + smt().
     move=> tr k'.
-    sp; if => //.
+    sp ^if & -1 ^if & -1; if => //.
     + smt().
-    rcondf{2} ^if; 1: by auto=> /#.
-    kill {2} ^r<$; 1: by islossless.
-    wp ^if ^if.
-    conseq (: _ ==> ={k}).
-    + move=> /> &1 &2.
-      smt(get_setE).
-    move=> />.
-    sp; if => //.
-    sp; match =; auto=> />.
-    smt().
-   
+    sp ^if & -1 ^if & -1; if=> //.
+    auto=> /> &1 &2.
+    smt(get_setE).
+
   - proc; inline*. 
     sp; if => //.
-    sp; match = => //; last by auto.
+    sp; match = => //.
     + smt().
     move=> tr k'.
-    sp; if => //.
+    sp ^if & -1 ^if & -1; if => //.
     + smt().
-    rcondf{2} ^if; 1: by auto=> /#.
-    kill {2} ^r<$; 1: by islossless.
-    wp ^if ^if.
-    conseq (: _ ==> ={k}).
-    + move=> /> &1 &2.
-      smt(get_setE).
-    move=> />.
-    sp; if => //.
-    sp; match =; auto=> />.
-    smt().
+    sp ^if & -1 ^if & -1; if=> //.
+    auto=> /> &1 &2.
+    smt(get_setE).
   
   auto=> />.
   smt(emptyE).
@@ -730,8 +718,8 @@ rewrite equiv [{1} 1 (KROc.FullEager.RO_LRO (Red_ROM_sk_1(A)) _)]; 1: by move=> 
 transitivity* {2} { r <@ KROc.MainD(Red_ROM_sk_2(A), KROc.RO).distinguish(); }.
 + rewrite equiv [{2} 1 (KROc.FullEager.RO_LRO (Red_ROM_sk_2(A)) _)]; 2: by move=> _; exact dskey_ll.
   inline*; wp.
-  call red_sk.
-  by auto. 
+  
+  call red_sk. auto.
 
 inline*; wp.
 call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game8)
@@ -786,37 +774,30 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
 
 - proc; inline*. 
   sp; if => //.
-  sp; match = => //; last by auto.
+  sp; match = => //.
   + smt().
   move=> tr k'.
-  sp ^if & -1 ^if & -1; if=> //.
+  sp ^if & -1 ^if & -1; if => //.
   + smt().
-  rcondf{1} ^if; 1: by auto=> /#.
-  kill {1} ^r<$; 1: by islossless.
-  sp 1 0; seq 1 1 : (={k} /\ #pre).
-  + auto=> />.
-  auto=> />.
+  sp ^if & -1 ^if & -1; if=> //.
+  auto=> /> &1 &2 *.
   smt(get_setE).
- 
+
 - proc; inline*. 
   sp; if => //.
-  sp; match = => //; last by auto.
+  sp; match = => //.
   + smt().
   move=> tr k'.
-  sp ^if & -1 ^if & -1; if=> //.
+  sp ^if & -1 ^if & -1; if => //.
   + smt().
-  rcondf{1} ^if; 1: by auto=> /#.
-  seq 1 1 : (k{1} = k{2} /\ #pre); 1: by auto.
-  kill {1} ^r<$; 1: by islossless.
-  sp; if => //.
-  + auto=> />.
-    smt(get_setE).
-  auto=> />.
+  sp ^if & -1 ^if & -1; if=> //.
+  swap {1} ^r<$ @ ^k<$.
+  auto=> /> &1 &2 *.
   smt(get_setE).
 
 auto=> />.
 smt(emptyE).
-qed.*)
+qed.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 0: Inline procedure calls, and remove pskeys from the state using psk_map to retrieve. *)
