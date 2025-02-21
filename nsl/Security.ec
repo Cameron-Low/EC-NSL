@@ -502,6 +502,46 @@ admitted.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 7 aux: Show the two reductions on sk are equivalent *)
+print KROc.RO.
+
+(*
+inductive Step7_inv 
+  (sm: (id * int, role * instance_state) fmap)
+  (rom : (trace, skey) fmap)
+  (a: id) (i: int)
+=
+| Game5_undef of
+    (sm.[a, i] = None)
+| Game5_aborted r of
+    (sm.[a, i] = Some (r, Aborted))
+| Game5_ipending b c1 of
+    (sm.[a, i] = Some (Initiator, IPending (b, witness, witness, c1) (a, c1)))
+  & (((a, b), msg1_data a b, c1) \in dm)
+  & (forall c2 c3, (msg3_data a b c1 c2, c3) \notin nm)
+| Game5_rpending b c1 c2 of
+    (sm.[a, i] = Some (Responder, RPending (b, witness, witness, witness, c1, c2) (b, c1) c2))
+| Game5_accepted r tr k of
+    (sm.[a, i] = Some (r, Accepted tr k))
+| Game5_observed r tr k of
+    (sm.[a, i] = Some (r, Observed tr k)).
+   
+op Game5_inv_full
+  (sm: (id * int, role * instance_state) fmap)
+  (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
+  (nm : (msg_data * ctxt, nonce * nonce) fmap)
+=
+  ((forall a i j b c, 
+       sm.[(a, i)] = Some (Initiator, IPending (b, witness, witness, c) (a, c))
+    /\ sm.[(a, j)] = Some (Initiator, IPending (b, witness, witness, c) (a, c))
+    => i = j)
+  /\ (forall a b ca cb, ((a, b), msg2_data a b ca, cb) \in dm => ((a, b), msg1_data a b, ca) \in dm)
+  /\ (forall a b ca cb caf, ((a, b), msg3_data a b ca cb, caf) \in dm => ((a, b), msg2_data a b ca, cb) \in dm)
+  /\ (forall a b ca cb caf, (msg3_data a b ca cb, caf) \in nm <=> ((a, b), msg3_data a b ca cb, caf) \in dm))
+  /\ (forall a i, Game5_inv sm dm nm a i).
+*)
+
+
+
 equiv red_sk: A(Red_ROM_sk_1(A, KROc.LRO).WAKE_O).run ~ A(Red_ROM_sk_2(A, KROc.LRO).WAKE_O).run:
   ={glob KROc.RO, glob A}
   /\ ={state_map, psk_map, dec_map, bad, prfkey_map, sk_map}(Red_ROM_sk_1.WAKE_O, Red_ROM_sk_2.WAKE_O)
@@ -526,16 +566,25 @@ proc(
   sp; if => //.
   seq 1 1 : (#pre /\ ={ca}); 1: by auto.
   sp 1 1; if => //.
-  auto => /> *.
-  admit.
+  auto => /> &1 &2 ? ? ? ? ? ? h ? ? ?.
+  case (h = (a, i){2}) => eqh.
+  + smt(get_set_sameE).
+  rewrite get_set_neqE //.
+  admit. (* lemma on card update is not change *)
 
 - proc; inline*.
   sp; if => //.
-  match = => //.
-  + auto => /> *. 
-    admit.
-  auto => /> *.
-  admit.
+  match = => // [|na].
+  + auto => /> &1 &2 ? ? ? ? ? ? ? ? h ? ? ?. 
+    case (h = (b, j){2}) => eqh. 
+    + smt(get_set_sameE).
+    rewrite get_set_neqE //.  
+    admit. (* lemma on card update is not change *)
+  auto => /> &1 &2 ? ? ? ? ? ? ? ? ? ? ? h ? ? ?.
+  case (h = (b, j){2}) => eqh. 
+  + smt(get_set_sameE).
+  rewrite get_set_neqE //.  
+  admit. (* lemma on card update is not change *)
 
 - proc; inline*.
   sp; if=> //. 
@@ -544,13 +593,20 @@ proc(
   move=> s m1.
   sp; match =.
   + smt().
-  + auto=> /> *.
-    admit.
+  + auto => /> &1 &2 ? ? ? ? ? ? ? h ? ? ?. 
+    case (h = (a, i){2}) => eqh. 
+    + smt(get_set_sameE).
+    rewrite get_set_neqE //.  
+    admit. (* lemma on card update is not change *)
   move=> nb.
   seq 1 1 : (#pre /\ ={caf}); 1: by auto.
   sp; if=> //.
-  auto=> /> *.
-  admit.
+  auto => /> &1 &2 ? ? ? ? ? ? ? ? ? ? ? h ? ? ?.
+  case (h = (a, i){2}) => eqh. 
+  + rewrite eqh get_set_sameE //.
+    admit. (* If I just update to Accepted the sk is not sampled yet *)
+  rewrite get_set_neqE //.  
+  admit. (* lemma on card update is not change *)
 
 - proc; inline*.
   sp; if=> //. 
@@ -559,14 +615,18 @@ proc(
   move=> s m1 m2. 
   sp; match =.
   + smt().
-  + auto=> /> &1 &2 ? ? ? ? ? ? ? h r tr k.
+  + auto=> /> &1 &2 ? ? ? ? ? ? ? h ? ? ?.
     case (h = (b, j){2}) => eqh. 
     + smt(get_set_sameE).
-    rewrite get_set_neqE //=.  
-    admit.
+    rewrite get_set_neqE //=.
+    admit. (* lemma on card update is not change *)
   move=> nok.
-  auto=> /> *.
-  admit.
+  auto => /> &1 &2 ? ? ? ? ? ? ? h ? ? ?.
+  case (h = (b, j){2}) => eqh. 
+  + rewrite eqh get_set_sameE.
+    admit. (* If I just update to Accepted the sk is not sampled yet *)
+  rewrite get_set_neqE //.  
+  admit. (* lemma on card update is not change *)
 
 - proc.
   sp; if=> //.
