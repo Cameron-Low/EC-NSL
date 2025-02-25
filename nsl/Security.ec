@@ -504,41 +504,27 @@ admitted.
 (* Step 7 aux: Show the two reductions on sk are equivalent *)
 print KROc.RO.
 
-(*
-inductive Step7_inv 
+
+inductive Game7_inv 
   (sm: (id * int, role * instance_state) fmap)
-  (rom : (trace, skey) fmap)
   (a: id) (i: int)
 =
 | Game5_undef of
     (sm.[a, i] = None)
+  & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
 | Game5_aborted r of
     (sm.[a, i] = Some (r, Aborted))
+  & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
 | Game5_ipending b c1 of
     (sm.[a, i] = Some (Initiator, IPending (b, witness, witness, c1) (a, c1)))
-  & (((a, b), msg1_data a b, c1) \in dm)
-  & (forall c2 c3, (msg3_data a b c1 c2, c3) \notin nm)
+  & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
 | Game5_rpending b c1 c2 of
     (sm.[a, i] = Some (Responder, RPending (b, witness, witness, witness, c1, c2) (b, c1) c2))
+  & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
 | Game5_accepted r tr k of
     (sm.[a, i] = Some (r, Accepted tr k))
 | Game5_observed r tr k of
     (sm.[a, i] = Some (r, Observed tr k)).
-   
-op Game5_inv_full
-  (sm: (id * int, role * instance_state) fmap)
-  (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
-  (nm : (msg_data * ctxt, nonce * nonce) fmap)
-=
-  ((forall a i j b c, 
-       sm.[(a, i)] = Some (Initiator, IPending (b, witness, witness, c) (a, c))
-    /\ sm.[(a, j)] = Some (Initiator, IPending (b, witness, witness, c) (a, c))
-    => i = j)
-  /\ (forall a b ca cb, ((a, b), msg2_data a b ca, cb) \in dm => ((a, b), msg1_data a b, ca) \in dm)
-  /\ (forall a b ca cb caf, ((a, b), msg3_data a b ca cb, caf) \in dm => ((a, b), msg2_data a b ca, cb) \in dm)
-  /\ (forall a b ca cb caf, (msg3_data a b ca cb, caf) \in nm <=> ((a, b), msg3_data a b ca cb, caf) \in dm))
-  /\ (forall a i, Game5_inv sm dm nm a i).
-*)
 
 
 
@@ -554,8 +540,10 @@ proc(
     /\ (forall t, t \in KROc.RO.m{1} <=> t \in KROc.RO.m{2})
     /\ (forall h r tr k, Red_ROM_sk_1.WAKE_O.state_map.[h] = Some (r, Accepted tr k) => 
                        card (get_observed_partners h Red_ROM_sk_1.WAKE_O.state_map) = 0 =>
-                       tr \notin KROc.RO.m 
-    ){1}
+                       tr \notin KROc.RO.m){1}
+    /\ (forall h h' r tr k k', Red_ROM_sk_1.WAKE_O.state_map.[h] = Some (r, Accepted tr k) => 
+                       Red_ROM_sk_1.WAKE_O.state_map.[h'] = Some (r, Accepted tr k') => 
+                       h = h'){1}
 )=> //.
 
 - smt(emptyE).
@@ -566,25 +554,26 @@ proc(
   sp; if => //.
   seq 1 1 : (#pre /\ ={ca}); 1: by auto.
   sp 1 1; if => //.
-  auto => /> &1 &2 ? ? ? ? ? ? h ? ? ?.
+  auto => /> &1 &2. (*
   case (h = (a, i){2}) => eqh.
   + smt(get_set_sameE).
-  rewrite get_set_neqE //.
+  rewrite get_set_neqE //.*)
   admit. (* lemma on card update is not change *)
 
 - proc; inline*.
   sp; if => //.
-  match = => // [|na].
-  + auto => /> &1 &2 ? ? ? ? ? ? ? ? h ? ? ?. 
+  match = => // [|na]. (*
+  + auto => /> &1 &2 ? ? ? ? ? ? ? ? ? h ? ? ?. 
     case (h = (b, j){2}) => eqh. 
     + smt(get_set_sameE).
     rewrite get_set_neqE //.  
     admit. (* lemma on card update is not change *)
-  auto => /> &1 &2 ? ? ? ? ? ? ? ? ? ? ? h ? ? ?.
+  auto => /> &1 &2 ? ? ? ? ? ? ? ? ? ? ? ? h ? ? ?.
   case (h = (b, j){2}) => eqh. 
   + smt(get_set_sameE).
-  rewrite get_set_neqE //.  
+  rewrite get_set_neqE //. *)
   admit. (* lemma on card update is not change *)
+  admit.
 
 - proc; inline*.
   sp; if=> //. 
@@ -593,20 +582,38 @@ proc(
   move=> s m1.
   sp; match =.
   + smt().
-  + auto => /> &1 &2 ? ? ? ? ? ? ? h ? ? ?. 
+  + auto => /> &1 &2 *.  
+    split; 2: smt(get_setE).
+    move => h.
     case (h = (a, i){2}) => eqh. 
     + smt(get_set_sameE).
-    rewrite get_set_neqE //.  
+    rewrite get_set_neqE //.
     admit. (* lemma on card update is not change *)
   move=> nb.
   seq 1 1 : (#pre /\ ={caf}); 1: by auto.
-  sp; if=> //.
-  auto => /> &1 &2 ? ? ? ? ? ? ? ? ? ? ? h ? ? ?.
-  case (h = (a, i){2}) => eqh. 
-  + rewrite eqh get_set_sameE //.
-    admit. (* If I just update to Accepted the sk is not sampled yet *)
-  rewrite get_set_neqE //.  
-  admit. (* lemma on card update is not change *)
+  sp; if=> //. 
+  auto => /> &1 &2 *.
+  split.
+  + move => h.
+    case (h = (a, i){2}) => eqh. 
+    + admit. (* Update myself *)
+    rewrite get_set_neqE //.  
+    admit. (* if new partner it cannot be observed *)
+  move => h h'.
+  case (h = (a, i){2}) => eqh.
+  + rewrite eqh get_set_sameE.
+    case (h' = (a, i){2}) => eqh'.
+    + by rewrite eqh'.
+      rewrite get_set_neqE //.
+      move => />.
+      admit. (* contradiction from caf *)
+  rewrite get_set_neqE //.
+  case (h' = (a, i){2}) => eqh'.
+  + rewrite eqh' get_set_sameE.
+    move => />.
+    admit. (* same as above *)
+  rewrite get_set_neqE //.
+  smt().  
 
 - proc; inline*.
   sp; if=> //. 
@@ -615,18 +622,37 @@ proc(
   move=> s m1 m2. 
   sp; match =.
   + smt().
-  + auto=> /> &1 &2 ? ? ? ? ? ? ? h ? ? ?.
+  + auto=> /> &1 &2 *.
+    split; 2: smt(get_setE).
+    move => h.
     case (h = (b, j){2}) => eqh. 
     + smt(get_set_sameE).
     rewrite get_set_neqE //=.
     admit. (* lemma on card update is not change *)
   move=> nok.
-  auto => /> &1 &2 ? ? ? ? ? ? ? h ? ? ?.
-  case (h = (b, j){2}) => eqh. 
+  auto => /> &1 &2 *.
+  split. 
+  + move => h.
+    case (h = (b, j){2}) => eqh. 
+    + rewrite eqh get_set_sameE.
+      admit. (* If I just update to Accepted the sk is not sampled yet *)
+    rewrite get_set_neqE //.  
+    admit. (* lemma on card update is not change *)
+  move => h h'.
+  case (h = (b, j){2}) => eqh.
   + rewrite eqh get_set_sameE.
-    admit. (* If I just update to Accepted the sk is not sampled yet *)
-  rewrite get_set_neqE //.  
-  admit. (* lemma on card update is not change *)
+    case (h' = (b, j){2}) => eqh'.
+    + by rewrite eqh'.
+      rewrite get_set_neqE //.
+      move => />.
+      admit. (* contradiction from caf *)
+  rewrite get_set_neqE //.
+  case (h' = (b, j){2}) => eqh'.
+  + rewrite eqh' get_set_sameE.
+    move => />.
+    admit. (* same as above *)
+  rewrite get_set_neqE //.
+  smt().  
 
 - proc.
   sp; if=> //.
@@ -644,6 +670,7 @@ proc(
     split. smt(get_setE).
     split. smt(get_setE).
     split. smt(get_setE mem_set).
+    split; 2: smt(get_setE).
     move => h r0 tr0 k0.
     rewrite get_set_sameE => /=.
     case (h = (a, i){2}).
@@ -661,13 +688,8 @@ proc(
         rewrite fdom_set filterU filter1 /= get_set_sameE /=.
         rewrite /(\o) /=.
         smt(@FSet).
-      admit. (* Should not be possible - unique trace for same role *)
-    rewrite /get_observed_partners.
-    rewrite /get_partners filter_set get_set_neqE => //=.
-    move => rneq -> /=.
-    rewrite eq_sym in hneqai.
-    rewrite eq_sym in rneq.
-    admit. (* What happens to get_partners when adding things to the state *)
+      smt(get_setE).
+    admit. (* not partnered before implies not partnered after update *)
   exfalso=> />.
   smt().
  
