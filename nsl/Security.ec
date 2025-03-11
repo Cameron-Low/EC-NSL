@@ -437,6 +437,10 @@ module (Red_ROM_sk_1 (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
     proc rev_skey [
       ^if.^match#Accepted.^if.^if.^k<- ~ { k <@ O.get(trace); }
     ]
+
+    proc test [
+      ^if.^match#Accepted.^if.^if.^k<- ~ { k <@ O.get(trace); }
+    ]
   }
 
   proc distinguish() = {
@@ -509,21 +513,21 @@ inductive Game7_inv
   (sm: (id * int, role * instance_state) fmap)
   (a: id) (i: int)
 =
-| Game5_undef of
+| Game7_undef of
     (sm.[a, i] = None)
   & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
-| Game5_aborted r of
+| Game7_aborted r of
     (sm.[a, i] = Some (r, Aborted))
   & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
-| Game5_ipending b c1 of
+| Game7_ipending b c1 of
     (sm.[a, i] = Some (Initiator, IPending (b, witness, witness, c1) (a, c1)))
   & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
-| Game5_rpending b c1 c2 of
+| Game7_rpending b c1 c2 of
     (sm.[a, i] = Some (Responder, RPending (b, witness, witness, witness, c1, c2) (b, c1) c2))
   & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
-| Game5_accepted r tr k of
+| Game7_accepted r tr k of
     (sm.[a, i] = Some (r, Accepted tr k))
-| Game5_observed r tr k of
+| Game7_observed r tr k of
     (sm.[a, i] = Some (r, Observed tr k)).
 
 
@@ -551,7 +555,7 @@ proc(
 - by sim />.
 
 - proc; inline*. 
-  sp; if => //.
+  sp; wp; if => //.
   seq 1 1 : (#pre /\ ={ca}); 1: by auto.
   sp 1 1; if => //.
   auto => /> &1 &2. (*
@@ -561,7 +565,7 @@ proc(
   admit. (* lemma on card update is not change *)
 
 - proc; inline*.
-  sp; if => //.
+  sp; wp; if => //.
   match = => // [|na]. (*
   + auto => /> &1 &2 ? ? ? ? ? ? ? ? ? h ? ? ?. 
     case (h = (b, j){2}) => eqh. 
@@ -576,7 +580,7 @@ proc(
   admit.
 
 - proc; inline*.
-  sp; if=> //. 
+  sp; wp; if=> //. 
   sp; match = => //.
   + smt().  
   move=> s m1.
@@ -616,7 +620,7 @@ proc(
   smt().  
 
 - proc; inline*.
-  sp; if=> //. 
+  sp; wp ^if ^if; if=> //. 
   sp; match = => //.
   + smt().
   move=> s m1 m2. 
@@ -655,7 +659,7 @@ proc(
   smt().  
 
 - proc.
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   sp; match = => //.
   + smt().
   move=> tr k'.
@@ -694,7 +698,7 @@ proc(
   smt().
  
 - proc.
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   sp; match = => //.
   + smt().
   move=> tr k'.
@@ -731,12 +735,12 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_1(A), KROc.RO).distinguish(); }.
   - by sim />.  
 
   - proc; inline*. 
-    sp; if => //.
+    sp; wp; if => //.
     auto => />.
     smt(mem_set get_setE).
   
   - proc; inline*.
-    sp; if => //.
+    sp; wp; if => //.
     match = => //.
     + auto => />. 
       smt(get_setE).
@@ -744,7 +748,7 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_1(A), KROc.RO).distinguish(); }.
     smt(mem_set get_setE).
   
   - proc; inline*.
-    sp; if=> //. 
+    sp; wp; if=> //. 
     sp; match = => //.
     + smt().  
     move=> s m1.
@@ -759,7 +763,7 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_1(A), KROc.RO).distinguish(); }.
     smt(mem_set get_setE).
   
   - proc; inline*.
-    sp; if=> //. 
+    sp; wp ^if ^if; if=> //. 
     sp; match = => //.
     + smt().
     move=> s m1 m2. 
@@ -772,7 +776,7 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_1(A), KROc.RO).distinguish(); }.
     smt(get_setE).
 
   - proc; inline*. 
-    sp; if => //.
+    sp; wp ^if ^if; if => //.
     sp; match = => //.
     + smt().
     move=> tr k'.
@@ -783,7 +787,7 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_1(A), KROc.RO).distinguish(); }.
     smt(get_setE).
 
   - proc; inline*. 
-    sp; if => //.
+    sp; wp ^if ^if; if => //.
     sp; match = => //.
     + smt().
     move=> tr k'.
@@ -800,7 +804,6 @@ rewrite equiv [{1} 1 (KROc.FullEager.RO_LRO (Red_ROM_sk_1(A)) _)]; 1: by move=> 
 transitivity* {2} { r <@ KROc.MainD(Red_ROM_sk_2(A), KROc.RO).distinguish(); }.
 + rewrite equiv [{2} 1 (KROc.FullEager.RO_LRO (Red_ROM_sk_2(A)) _)]; 2: by move=> _; exact dskey_ll.
   inline*; wp.
-  
   call red_sk. auto.
 
 inline*; wp.
@@ -814,12 +817,12 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
 - by sim />.  
 
 - proc; inline*. 
-  sp; if => //.
+  sp; wp; if => //.
   auto => />.
   smt(mem_set get_setE).
 
 - proc; inline*.
-  sp; if => //.
+  sp; wp; if => //.
   match = => //.
   + auto => />. 
     smt(get_setE).
@@ -827,7 +830,7 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
   smt(mem_set get_setE).
 
 - proc; inline*.
-  sp; if=> //. 
+  sp; wp; if=> //. 
   sp; match = => //.
   + smt().  
   move=> s m1.
@@ -842,7 +845,7 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
   smt(mem_set get_setE).
 
 - proc; inline*.
-  sp; if=> //. 
+  sp; wp ^if ^if; if=> //. 
   sp; match = => //.
   + smt().
   move=> s m1 m2. 
@@ -855,7 +858,7 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
   smt(get_setE).
 
 - proc; inline*. 
-  sp; if => //.
+  sp; wp ^if ^if; if => //.
   sp; match = => //.
   + smt().
   move=> tr k'.
@@ -866,7 +869,7 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
   smt(get_setE).
 
 - proc; inline*. 
-  sp; if => //.
+  sp; wp ^if ^if; if => //.
   sp; match = => //.
   + smt().
   move=> tr k'.
@@ -947,7 +950,7 @@ call (:
           /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
   ) GWAKE0_inv_send_msg1 _ => //.
   proc; inline.
-  sp; if=> //.
+  sp; wp; if=> //.
   + smt().
   auto=> />.
   smt(get_setE).
@@ -957,7 +960,7 @@ call (:
           /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
   ) GWAKE0_inv_send_msg2 _ => //.
   proc; inline.
-  sp; if=> //.
+  sp; wp; if=> //.
   + smt().
   sp; match =.
   + smt().
@@ -971,7 +974,7 @@ call (:
           /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
   ) GWAKE0_inv_send_msg3 _ => //.
   proc; inline.
-  sp; if=> //.
+  sp; wp; if=> //.
   + smt().
   sp; match; 1..5: (
     move=> &1 &2 /> + + /(_ (a, i){2});
@@ -999,7 +1002,7 @@ call (:
           /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
   ) GWAKE0_inv_send_fin _ => //.
   proc; inline.
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5: (
     move=> &1 &2 /> + + /(_ (b, j){2});
@@ -1027,7 +1030,7 @@ call (:
           /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
   ) GWAKE0_inv_rev_skey _ => //.
   proc; inline. 
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5:(
     move=> &1 &2 /> + + /(_ (a, i){2});
@@ -1057,7 +1060,7 @@ call (:
           /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
      ) GWAKE0_inv_test _ => //.
   proc; inline. 
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5:(
     move=> &1 &2 /> + + /(_ (a, i){2});
@@ -1117,7 +1120,7 @@ do! congr.
          /\ ={state_map}(Game1, Red_AEAD.WAKE_O)
     ) Game1_inv_send_msg1 _ => //.
     proc; inline.
-    sp; if=> //.
+    sp; wp; if=> //.
     by match Some {2} ^match; auto; smt().
 
   - conseq (: ={res}
@@ -1125,7 +1128,7 @@ do! congr.
          /\ ={state_map}(Game1, Red_AEAD.WAKE_O)
     ) Game1_inv_send_msg2 _ => //.
     proc; inline.
-    sp; if=> //.
+    sp; wp; if=> //.
     match Some {2} ^match.
     + auto; smt().
     sp; match =.
@@ -1139,7 +1142,7 @@ do! congr.
          /\ ={state_map}(Game1, Red_AEAD.WAKE_O)
     ) Game1_inv_send_msg3 _ => //.
     proc; inline.
-    sp; if=> //.
+    sp; wp; if=> //.
     sp; match = => //. 
     + smt().
     move=> st m1.
@@ -1160,7 +1163,7 @@ do! congr.
          /\ ={state_map}(Game1, Red_AEAD.WAKE_O)
     ) Game1_inv_send_fin _ => //.
     proc; inline.
-    sp; if=> //.
+    sp; wp ^if ^if; if=> //.
     sp; match = => //.
     + move=> /#.
     move=> st m1 m2.
@@ -1209,7 +1212,7 @@ call (:
        /\ Game2.dec_map{1} = GAEAD1.ctxts{2}
   ) Game2_inv_send_msg1 _ => //.
   proc; inline.
-  sp; if=> //.
+  sp; wp; if=> //.
   rcondt{2} ^if; 1: by auto.
   swap {2} ^c<$ @ ^na<$.
   by auto.
@@ -1220,7 +1223,7 @@ call (:
        /\ Game2.dec_map{1} = GAEAD1.ctxts{2}
   ) Game2_inv_send_msg2 _ => //.
   proc; inline.
-  sp; if=> //.
+  sp; wp; if=> //.
   rcondt {2} 5; 1: by auto.
   sp; match = => //.
   + by auto.
@@ -1235,7 +1238,7 @@ call (:
        /\ Game2.dec_map{1} = GAEAD1.ctxts{2}
   ) Game2_inv_send_msg3 _ => //.
   proc; inline.
-  sp; if=> //.
+  sp; wp; if=> //.
   sp; match = => //.
   + smt().
   move=> st m1.
@@ -1260,7 +1263,7 @@ call (:
        /\ Game2.dec_map{1} = GAEAD1.ctxts{2}
   ) Game2_inv_send_fin _ => //.
   proc; inline.
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   sp; match = => //.
   + smt().
   move=> st m1 m2.
@@ -1310,7 +1313,7 @@ call (: Game3.bad, ={bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}(Gam
   by rewrite dpskey_ll. 
  
 + proc.
-  sp; if=> //.
+  sp; wp; if=> //.
   seq 1 1: (#pre /\ ={ca}); 1: by auto.
   sp 1 1.
   by if{2}; auto=> />.
@@ -1318,12 +1321,12 @@ call (: Game3.bad, ={bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}(Gam
   proc; sp; if=> //; auto.
   by rewrite dnonce_ll dctxt_ll.
 + move=> &1.
-  proc; sp; if=> //.
+  proc; sp; wp; if=> //.
   rcondf ^if; auto=> />.
   by rewrite dctxt_ll.
 
 + proc.
-  sp; if=> //.
+  sp; wp; if=> //.
   match = => //.
   + by auto.
   move=> na.
@@ -1331,15 +1334,15 @@ call (: Game3.bad, ={bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}(Gam
   sp 0 1.
   by if{2}; auto=> />.
 + move=> &2 ->.
-  proc; sp; if=> //; match =; auto.
+  proc; sp; wp; if=> //; match =; auto.
   by rewrite dnonce_ll dctxt_ll.
 + move=> &1.
-  proc; sp; if=> //; match =; auto.
+  proc; sp; wp; if=> //; match =; auto.
   rcondf ^if; auto=> />.
   by rewrite dctxt_ll.
 
 + proc.
-  sp; if=> //.
+  sp; wp; if=> //.
   sp; match = => //.
   - smt().
   move => s m1.
@@ -1350,37 +1353,37 @@ call (: Game3.bad, ={bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}(Gam
   sp 0 1.
   by if{2}; auto=> />.
 + move=> &2 ->.
-  proc; sp; if=> //; sp; match =; auto; sp; match =; auto.
+  proc; sp; wp; if=> //; sp; match =; auto; sp; match =; auto.
   by rewrite dnonce_ll dctxt_ll.
 + move=> &1.
-  proc; sp; if=> //; sp; match =; auto; sp; match =; auto.
+  proc; sp; wp; if=> //; sp; match =; auto; sp; match =; auto.
   rcondf ^if; auto=> />.
   by rewrite dctxt_ll.
 
 + proc.
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   sp; match =; auto; smt(). 
 + move=> &2 ->.
-  proc; sp; if=> //; sp; match =; auto; smt().
+  proc; sp; wp ^if; if=> //; sp; match =; auto; smt().
 + move=> &1.
-  proc; sp; if=> //; sp; match =; auto; smt().
+  proc; sp; wp ^if; if=> //; sp; match =; auto; smt().
 
 + proc.
-  sp; if=> //.
+  sp; wp ^if ^if ;if=> //.
   sp; match =; auto; smt(). 
 + move=> &2 ->.
-  proc; sp; if=> //; sp; match =; auto; smt().
+  proc; sp; wp ^if; if=> //; sp; match =; auto; smt().
 + move=> &1.
-  proc; sp; if=> //; sp; match =; auto; smt().
+  proc; sp; wp ^if; if=> //; sp; match =; auto; smt().
 
 
 + proc.
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   sp; match =; auto; smt(). 
 + move=> &2 ->.
-  proc; sp; if=> //; sp; match =; auto; smt().
+  proc; sp; wp ^if; if=> //; sp; match =; auto; smt().
 + move=> &1.
-  proc; sp; if=> //; sp; match =; auto; smt().
+  proc; sp; wp ^if; if=> //; sp; match =; auto; smt().
 auto=> />.
 move=> rl rr al bl dl pl sl ar br dr pr sr. 
 by case : (!br) => />.
@@ -1540,7 +1543,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_nonces s)) Game3.state_map.[h]{1} = Game4.state_map.[h]{2})
   ) Game3_inv_send_msg1 _ => //.
   proc; inline*.
-  sp; if=> //.
+  sp; wp; if=> //.
   + smt().
   seq 1 1 : (#pre /\ ={ca}); 1: by auto.  
   sp; if=> //.
@@ -1553,7 +1556,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_nonces s)) Game3.state_map.[h]{1} = Game4.state_map.[h]{2})
   ) Game3_inv_send_msg2 _ => //.
   proc; inline*.
-  sp; if=> //.
+  sp; wp; if=> //.
   + smt().
   match = => //.
   + by auto; smt(get_setE).
@@ -1568,7 +1571,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_nonces s)) Game3.state_map.[h]{1} = Game4.state_map.[h]{2})
   ) Game3_inv_send_msg3 _ => //.
   proc; inline*.
-  sp; if=> //.
+  sp; wp; if=> //.
   + smt().
   sp; match; 1..5: (
     move=> &1 &2 /> + + /(_ (a, i){2});
@@ -1593,7 +1596,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_nonces s)) Game3.state_map.[h]{1} = Game4.state_map.[h]{2})
   ) Game3_inv_send_fin _ => //.
   proc; inline*.
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5: (
     move=> &1 &2 /> + + /(_ (b, j){2});
@@ -1615,7 +1618,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_nonces s)) Game3.state_map.[h]{1} = Game4.state_map.[h]{2})
   ) Game3_inv_rev_skey _ => //.
   proc; inline. 
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5:(
     move=> &1 &2 /> + + /(_ (a, i){2});
@@ -1644,7 +1647,7 @@ call(: ={psk_map, bad, dec_map}(Game3, Game4)
     /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_nonces s)) Game3.state_map.[h]{1} = Game4.state_map.[h]{2})
   ) Game3_inv_test _ => //.
   proc; inline. 
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5:(
     move=> &1 &2 /> + + /(_ (a, i){2});
@@ -1699,7 +1702,7 @@ transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); }.
   - by proc; sp; if; auto.
 
   - proc; inline*.
-    sp; if=> //.
+    sp; wp; if=> //.
     seq 1 1 : (#pre /\ ={ca}); 1: by auto.
     sp; if=> //.
     + smt().
@@ -1709,7 +1712,7 @@ transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); }.
     by auto=> /#.
   
    - proc; inline*.
-     sp; if=> //. 
+     sp; wp; if=> //. 
      match; 1,2: smt().
      + by auto=> />.
      move=> nal nar.
@@ -1722,7 +1725,7 @@ transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); }.
      by auto=> /#.
 
    - proc; inline*.
-     sp; if=> //. 
+     sp; wp; if=> //. 
      sp; match = => //.
      + smt().
      move=> s m1.
@@ -1747,7 +1750,7 @@ transitivity* {1} { r <@ MainD(Red_ROM(A), RO).distinguish(); }.
     by auto=> /#.
   
    - proc; inline*.
-     sp; if=> //. 
+     sp; wp ^if ^if; if=> //. 
      sp; match = => //.
      + smt().
      move=> s m1 m2.
@@ -1795,7 +1798,7 @@ wp; call (:
                        RO.m{1}.[(msg2_data a b ca, cb)] = Some nb)
   ) _ Game5_inv_send_msg1 => //.
   proc; inline*.
-  sp; if=> //.
+  sp; wp; if=> //.
   by auto=> />.
 
 - conseq (: ={res}
@@ -1810,7 +1813,7 @@ wp; call (:
                        RO.m{1}.[(msg2_data a b ca, cb)] = Some nb)
   ) _ Game5_inv_send_msg2 => //.
   proc; inline*.
-  sp; if=> //.
+  sp; wp; if=> //.
   by sp; match =; auto=> />.
 
 - conseq (: ={res}
@@ -1825,7 +1828,7 @@ wp; call (:
                        RO.m{1}.[(msg2_data a b ca, cb)] = Some nb)
   ) _ Game5_inv_send_msg3 => //.
   proc; inline*.
-  sp; if=> //.
+  sp; wp; if=> //.
   sp; match = => //.
   + smt().
   move=> s m1.
@@ -1870,7 +1873,7 @@ wp; call (:
                        RO.m{1}.[(msg2_data a b ca, cb)] = Some nb)
   ) _ Game5_inv_send_fin => //.
 - proc; inline*.
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   sp; match = => //.
   + smt().
   move=> s m1 m2.
@@ -1919,7 +1922,7 @@ wp; call (:
   by sim />.
 
 auto => />.
-smt(emptyE Game5_undef).
+smt(Game5_undef emptyE).
 qed.
 
 (* ------------------------------------------------------------------------------------------ *)
@@ -1960,7 +1963,7 @@ do! congr.
      /\ ={prfkey_map}(Game5, PRFb)
     ) Game5_inv_send_msg3 _ => //.
     proc; inline*.
-    sp; if=> //. 
+    sp; wp; if=> //. 
     sp; match = => //.
     + smt().
     move=> s m1.
@@ -1983,7 +1986,7 @@ do! congr.
      /\ ={prfkey_map}(Game5, PRFb)
     ) Game5_inv_send_fin _ => //.
      proc; inline*.
-     sp; if=> //. 
+     sp; wp ^if ^if; if=> //. 
      sp; match = => //.
      + smt().
      move=> s m1 m2.
@@ -2026,19 +2029,19 @@ call (:
 - by sim />.
 
 - proc; inline*. 
-  sp; if => //.
+  sp; wp; if => //.
   auto => />.
   smt(get_setE).
 
 - proc; inline*.
-  sp; if => //.
+  sp; wp; if => //.
   match = => //.
   + by auto => />. 
   auto => />.
   smt(get_setE).
 
 - proc; inline*.
-  sp; if=> //. 
+  sp; wp; if=> //. 
   sp; match = => //.
   + smt().
   move=> s m1.
@@ -2061,7 +2064,7 @@ call (:
   smt(get_setE).
 
 - proc; inline*.
-  sp; if=> //. 
+  sp; wp ^if ^if; if=> //. 
   sp; match = => //.
   + smt().
   move=> s m1 m2.
@@ -2140,13 +2143,13 @@ call (:
 - by sim />.
 
 - proc; inline*. 
-  sp; if => //.
+  sp; wp; if => //.
   + smt().
   auto => />.
   smt(mem_set get_setE).
 
 - proc; inline*.
-  sp; if => //.
+  sp; wp; if => //.
   + smt().
   match = => //.
   + auto => />. 
@@ -2155,7 +2158,7 @@ call (:
   smt(mem_set get_setE).
 
 - proc; inline*.
-  sp; if=> //. 
+  sp; wp; if=> //. 
   + smt().
   sp; match; 1..5: smt(); 2..5: by auto.
   move=> sl m1l sr m1r.
@@ -2170,7 +2173,7 @@ call (:
   smt(mem_set get_setE).
 
 - proc; inline*.
-  sp; if=> //. 
+  sp; wp ^if ^if; if=> //. 
   + smt().
   sp; match; 1..5: smt(); 1,3..5: by auto.
   move=> sl m1l m2l sr m1r m2r.
@@ -2183,7 +2186,7 @@ call (:
   smt(get_setE).
 
 - proc; inline. 
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5: smt(); 1,2,4,5: by auto.
   move=> tr k tr' k'.
@@ -2204,7 +2207,7 @@ call (:
   smt(get_setE).
 
 - proc; inline. 
-  sp; if=> //.
+  sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5: smt(); 1,2,4,5: by auto.
   move=> tr k tr' k'.

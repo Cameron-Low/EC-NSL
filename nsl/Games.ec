@@ -1,18 +1,30 @@
-require import AllCore FMap FSet Distr NSL.
+require import AllCore FMap FSet Distr NSL List.
 import GWAKEc AEADc.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Intermediate Games *)
 (* ------------------------------------------------------------------------------------------ *)
 
+type log_entry = [
+  | GenPskey of (id * id)
+  | SendMsg1 of (id * int * id) & ctxt option
+  | SendMsg2 of (id * int * (id * ctxt)) & ctxt option
+  | SendMsg3 of (id * int * ctxt) & ctxt option
+  | SendFin of (id * int * ctxt) & unit option
+  | RevSkey of (id * int) & skey option
+  | Test of (id * int) & skey option
+].
+
 (* Inlining and removing psk from instance state *)
 module Game1 = {
   var state_map: (id * int, role * instance_state) fmap
   var psk_map: (id * id, pskey) fmap
+  var log: log_entry list
 
   proc init_mem() : unit = {
     state_map <- empty;
     psk_map <- empty;
+    log <- [];
   }
 
   proc gen_pskey(a: id, b: id) : unit = {
@@ -21,6 +33,7 @@ module Game1 = {
       k <$ dpskey;
       psk_map.[(a, b)] <- k;
     }
+    log <- GenPskey (a, b) :: log;
   }
   
   proc send_msg1(a, i, b) = {
@@ -33,9 +46,9 @@ module Game1 = {
       mo <- Some ca;
       state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, ca) (a, ca));
     }
+    log <- SendMsg1 (a, i, b) mo :: log;
     return mo;
   }
-
 
   proc send_msg2(b, j, m1) = {
     var a, ca, role, st, nb, cb;
@@ -53,6 +66,7 @@ module Game1 = {
         state_map.[(b, j)] <- (Responder, Aborted);
       }
     }
+    log <- SendMsg2 (b, j, m1) mo :: log;
     return mo;
   }
 
@@ -75,6 +89,7 @@ module Game1 = {
         }
       }
     }
+    log <- SendMsg3 (a, i, m2) mo :: log;
     return mo;
   }
 
@@ -95,6 +110,7 @@ module Game1 = {
         }
       }
     }
+    log <- SendFin (b, j, m3) mo :: log;
     return mo;
   }
 
@@ -122,10 +138,37 @@ module Game1 = {
       | Aborted        => { }
       end;
     }
+    log <- RevSkey (a, i) ko :: log;
     return ko;
   }
  
-  proc test = rev_skey
+  proc test(a, i) = {
+    var role, st, ps, k;
+    var ko <- None;
+ 
+    if ((a, i) \in state_map) {
+      (role, st) <- oget state_map.[(a, i)];
+      match st with
+      | Accepted trace k' => {
+        ps <- get_partners (a, i) (Some trace) role state_map;
+        if (card ps <= 1) {
+          ps <- get_observed_partners (a, i) state_map;
+          if (card ps = 0) {
+            k <- k';
+            ko <- Some k;
+            state_map.[(a, i)] <- (role, Observed trace k);
+          }
+        }
+      }
+      | Observed _ _   => { }
+      | IPending _ _   => { }
+      | RPending _ _ _ => { }
+      | Aborted        => { }
+      end;
+    }
+    log <- Test (a, i) ko :: log;
+    return ko;
+  }
 }.
 
 (* Decmap instead of real enc/dec *)
@@ -173,18 +216,20 @@ module Game2 = Game1 with {
   ]
 }.
 
+print Game2.
+
 (* No ctxt collisions *)
 module Game3 = Game2 with {
   proc send_msg1 [
-    ^if.^bad<- + (!bad)
+    [^if.^bad<- - ^state_map<-] + (!bad)
   ]
 
   proc send_msg2 [
-    ^if.^match#Some.^bad<- + (!bad)
+    [^if.^match#Some.^bad<- - ^state_map<-] + (!bad)
   ]
 
   proc send_msg3 [
-    ^if.^match#IPending.^match#Some.^bad<- + (!bad)
+    [^if.^match#IPending.^match#Some.^bad<- - ^state_map<-] + (!bad)
   ]
 }.
 
@@ -214,6 +259,8 @@ module Game4 = Game3 with {
     }
   ]
 }.
+
+
 
 (* Delay nonce sampling *)
 module Game5 = Game4 with {
@@ -288,6 +335,11 @@ module Game7 = Game6 with {
     ^if.^match#RPending.^match#Some.^skey<- ~ { skey <- witness; }
   ]
   proc rev_skey [
+    ^if.^match#Accepted.^if.^if.^k<- ~ {
+      k <- oget sk_map.[trace];
+    } 
+  ]
+  proc test [
     ^if.^match#Accepted.^if.^if.^k<- ~ {
       k <- oget sk_map.[trace];
     } 
@@ -552,7 +604,7 @@ hoare Game1_inv_gen_pskey: Game1.gen_pskey:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
-if => //.
+wp; if => //.
 auto => />.
 move => &m inv abnin pk _ a' i'.
 case: (inv a' i') =>
@@ -580,7 +632,7 @@ hoare Game1_inv_send_msg1: Game1.send_msg1:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 auto => /> &m inv ainin abin na _ ca _ a' i'.
 case ((a', i') = (a, i){m}) => [[] <<- <-|neq_ai].
 + apply (Game1_ipending _ _ _ _ b{m} na ca witness)=> //.
@@ -594,7 +646,7 @@ hoare Game1_inv_send_msg2: Game1.send_msg2:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 sp; match.
 + auto => /> &m decn st inv bjnin abin a' i'.
   exact /Game1_inv_aborted/inv.
@@ -612,7 +664,7 @@ hoare Game1_inv_send_msg3: Game1.send_msg3:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 sp; match; 2..5: auto.
 sp; match.
 + auto => /> &m decn st inv abin a' i'.
@@ -631,7 +683,7 @@ hoare Game1_inv_send_fin: Game1.send_fin:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1, 3..5: by auto.
 sp; match.
 - auto => /> &m decn st inv bjin a' i'.
@@ -650,7 +702,7 @@ hoare Game1_inv_rev_skey: Game1.rev_skey:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
 auto => /> &m st inv aiin _ _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -665,7 +717,7 @@ hoare Game1_inv_test: Game1.test:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
 auto => /> &m st inv aiin _ _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -692,7 +744,7 @@ hoare Game2_inv_send_msg1: Game2.send_msg1:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 auto => /> &m inv ainin abin ca _ na _ a' i'.
 case ((a', i') = (a, i){m}) => [[] <<- <- |neq_ai].
 + apply (Game1_ipending _ _ _ _ b{m} na ca witness) => //.
@@ -706,7 +758,7 @@ hoare Game2_inv_send_msg2: Game2.send_msg2:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 sp; match.
 + auto => /> &m decn st inv bjnin abin a' i'.
   exact /Game1_inv_aborted/inv.
@@ -724,7 +776,7 @@ hoare Game2_inv_send_msg3: Game2.send_msg3:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 sp; match; 2..5: auto.
 sp; match.
 + auto => /> &m decn st inv abin a' i'.
@@ -743,7 +795,7 @@ hoare Game2_inv_send_fin: Game2.send_fin:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1, 3..5: by auto.
 sp; match.
 - auto => /> &m decn st inv bjin a' i'.
@@ -865,7 +917,7 @@ hoare Game3_inv_gen_pskey: Game3.gen_pskey:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
-if => //.
+wp; if => //.
 by auto.
 qed.
     
@@ -875,7 +927,7 @@ hoare Game3_inv_send_msg1: Game3.send_msg1:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 seq 1 : (#pre); 1: by auto.
 sp; if=> //.
 auto => /> &m _ inv ainin abin /negb_or [_ uniq] na _ a' i'.
@@ -890,7 +942,7 @@ hoare Game3_inv_send_msg2: Game3.send_msg2:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 sp; match.
 + auto => /> &m decn st inv bjnin abin a' i'.
   exact /Game3_inv_aborted/inv.
@@ -911,7 +963,7 @@ hoare Game3_inv_send_msg3: Game3.send_msg3:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp; if => //.
 sp; match; 2..5: auto.
 sp; match.
 + auto => /> &m decn st inv abin a' i'.
@@ -931,7 +983,7 @@ hoare Game3_inv_send_fin: Game3.send_fin:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1: auto; 2..4: auto.
 sp; match.
 - auto => /> &m decn st inv bjin a' i'.
@@ -949,7 +1001,7 @@ hoare Game3_inv_rev_skey: Game3.rev_skey:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
 auto => /> &m st inv aiin _ _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -964,7 +1016,7 @@ hoare Game3_inv_test: Game3.test:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
 auto => /> &m st inv aiin _ _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -1009,6 +1061,20 @@ op Game5_inv_full
   /\ (forall a b ca cb caf, ((a, b), msg3_data a b ca cb, caf) \in dm => ((a, b), msg2_data a b ca, cb) \in dm)
   /\ (forall a b ca cb caf, (msg3_data a b ca cb, caf) \in nm <=> ((a, b), msg3_data a b ca cb, caf) \in dm))
   /\ (forall a i, Game5_inv sm dm nm a i).
+
+abbrev "_.[_]" = List.nth witness<: 'a>.
+op Game5_inv_log (log : log_entry list)
+= 
+(forall b j a i m2 m3 s, log.[s] = SendFin (b, j, m3) (Some tt) =>
+  exists t, t < s => log.[t] = SendMsg3 (a, i, m2) (Some m3))
+/\
+(forall b j a i m1 m2 m3 s, log.[s] = SendMsg3 (a, i, m2) (Some m3) =>
+  exists t, t < s => log.[t] = SendMsg2 (b, j, m1) (Some m2))
+/\
+(forall b j a i m1 m2 s, log.[s] = SendMsg2 (b, j, (a, m1)) (Some m2) =>
+  exists t, t < s => log.[t] = SendMsg1 (a, i, b) (Some m1)).
+(* /\
+(forall s m, m \in get_message log.[s] => forall t, m \in get_message log.[t] => s = t) *)
 
 lemma Game5_inv_neq_sm a i c j v sm dm nm:
 ! (c = a /\ j = i) =>
@@ -1076,7 +1142,7 @@ hoare Game5_inv_send_msg1: Game5.send_msg1:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).
 proof.
 proc.
-sp; if=> //.
+sp; wp; if=> //.
 seq 1 : (#pre); 1: by auto.
 case (Game5.bad).
 + by rcondf ^if; auto=> />.
@@ -1111,7 +1177,7 @@ hoare Game5_inv_send_msg2: Game5.send_msg2:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).
 proof.
 proc.
-sp; if=> //.
+sp; wp; if=> //.
 sp; match => //.
 + auto=> />.
   move=> &m dm sm inv1 inv2 inv3 inv4 inv5 bjnin abin.
@@ -1135,7 +1201,7 @@ hoare Game5_inv_send_msg3: Game5.send_msg3:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).
 proof.
 proc.
-sp; if=> //.
+sp; wp; if=> //.
 sp; match => //.
 sp; match => //.
 + auto=> />.
@@ -1181,7 +1247,7 @@ hoare Game5_inv_send_fin: Game5.send_fin:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).
 proof.
 proc.
-sp; if=> //.
+sp; wp ^if; if=> //.
 sp; match => //.
 sp; match => //.
 + auto=> />.
@@ -1205,7 +1271,7 @@ hoare Game5_inv_rev_skey: Game5.rev_skey:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).
 proof.
 proc.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
 auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ _.
 split; 1: smt(get_setE).
@@ -1222,7 +1288,7 @@ hoare Game5_inv_test: Game5.test:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).
 proof.
 proc.
-sp; if => //.
+sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
 auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ _.
 split; 1: smt(get_setE).
