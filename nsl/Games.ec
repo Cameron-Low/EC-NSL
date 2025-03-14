@@ -15,6 +15,15 @@ type log_entry = [
   | Test of (id * int) & skey option
 ].
 
+op get_message e : ctxt option =
+with e = GenPskey _ => None
+with e = SendMsg1 _ co => co
+with e = SendMsg2 _ co => co
+with e = SendMsg3 _ co => co
+with e = SendFin _ _ => None
+with e = RevSkey _ _ => None
+with e = Test _ _ => None.
+
 (* Inlining and removing psk from instance state *)
 module Game1 = {
   var state_map: (id * int, role * instance_state) fmap
@@ -1063,6 +1072,7 @@ op Game5_inv_full
   /\ (forall a i, Game5_inv sm dm nm a i).
 
 abbrev "_.[_]" = List.nth witness<: 'a>.
+
 op Game5_inv_log (log : log_entry list)
 = 
 (forall b j a i m2 m3 s, log.[s] = SendFin (b, j, m3) (Some tt) =>
@@ -1072,9 +1082,96 @@ op Game5_inv_log (log : log_entry list)
   exists t, t < s => log.[t] = SendMsg2 (b, j, m1) (Some m2))
 /\
 (forall b j a i m1 m2 s, log.[s] = SendMsg2 (b, j, (a, m1)) (Some m2) =>
-  exists t, t < s => log.[t] = SendMsg1 (a, i, b) (Some m1)).
-(* /\
-(forall s m, m \in get_message log.[s] => forall t, m \in get_message log.[t] => s = t) *)
+  exists t, t < s => log.[t] = SendMsg1 (a, i, b) (Some m1))
+/\
+(forall s m, m = oget (get_message log.[s]) => forall t, m = oget (get_message log.[t]) => s = t).
+
+hoare Game5_inv_log_send_msg1: Game5.send_msg1:
+  (Game5_inv_log Game5.log)
+  ==>
+  (Game5_inv_log Game5.log).
+proof.
+proc.
+sp; wp; if=> //.
++ seq 1 : (#pre); 1: by auto.
+  sp 1; if => //.
+  + auto.
+    move=> &m [#|] *.
+    rewrite /Game5_inv_log.
+    split. smt().
+    split. smt().
+    split. smt().
+    admit.
+  skip.
+  move=> &m [#|] *.
+  by rewrite /Game5_inv_log /#.
+skip.
+move=> &m [#|] *.
+by rewrite /Game5_inv_log /#.
+qed.
+
+
+hoare Game5_inv_log_send_msg2: Game5.send_msg2:
+  (Game5_inv_log Game5.log)
+  ==>
+  (Game5_inv_log Game5.log).
+proof.
+proc.
+sp; wp; if=> //.
++ match => //.
+  + auto.
+    move=> &m [#|] *.
+    by rewrite /Game5_inv_log /#.
+  seq 1 : (#pre); 1: by auto.
+  sp 1; if => //.
+  + auto.
+    move=> &m [#|] *.
+    rewrite /Game5_inv_log. smt().
+  skip.
+  move=> &m [#|] *.
+  by rewrite /Game5_inv_log /#.
+skip.
+move=> &m [#|] *.
+by rewrite /Game5_inv_log /#.
+qed.
+
+hoare Game5_inv_log_send_msg3: Game5.send_msg3:
+  (Game5_inv_log Game5.log)
+  ==>
+  (Game5_inv_log Game5.log).
+proof.
+proc.
+sp; wp; if=> //.
++ sp; match => //; first last.
+  + skip.
+    move=> &m [#|] *.
+    by rewrite /Game5_inv_log /#.
+  + skip.
+    move=> &m [#|] *.
+    by rewrite /Game5_inv_log /#.
+  + skip.
+    move=> &m [#|] *.
+    by rewrite /Game5_inv_log /#.
+  + skip.
+    move=> &m [#|] *.
+    by rewrite /Game5_inv_log /#.
+  sp; match => //.
+  + auto.
+    move=> &m [#|] *.
+    by rewrite /Game5_inv_log /#.
+  seq 1: (#pre); 1: by auto.
+  sp 1; if => //.
+  + auto.
+    move=> &m [#|] *.
+    by rewrite /Game5_inv_log /#.   
+  skip.
+  move=> &m [#|] *.
+  by rewrite /Game5_inv_log /#.
+skip.
+move=> &m [#|] *.
+by rewrite /Game5_inv_log /#.
+qed.
+
 
 lemma Game5_inv_neq_sm a i c j v sm dm nm:
 ! (c = a /\ j = i) =>
