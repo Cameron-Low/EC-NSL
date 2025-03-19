@@ -1076,102 +1076,88 @@ abbrev "_.[_]" = List.nth witness<: 'a>.
 op Game5_inv_log (log : log_entry list)
 = 
 (forall b j a i m2 m3 s, log.[s] = SendFin (b, j, m3) (Some tt) =>
-  exists t, t < s => log.[t] = SendMsg3 (a, i, m2) (Some m3))
+  exists t, s < t /\ log.[t] = SendMsg3 (a, i, m2) (Some m3))
 /\
 (forall b j a i m1 m2 m3 s, log.[s] = SendMsg3 (a, i, m2) (Some m3) =>
-  exists t, t < s => log.[t] = SendMsg2 (b, j, m1) (Some m2))
+  exists t, s < t /\ log.[t] = SendMsg2 (b, j, m1) (Some m2))
 /\
 (forall b j a i m1 m2 s, log.[s] = SendMsg2 (b, j, (a, m1)) (Some m2) =>
-  exists t, t < s => log.[t] = SendMsg1 (a, i, b) (Some m1))
+  exists t, s < t /\ log.[t] = SendMsg1 (a, i, b) (Some m1))
 /\
 (forall s m, m = oget (get_message log.[s]) => forall t, m = oget (get_message log.[t]) => s = t).
 
-hoare Game5_inv_log_send_msg1: Game5.send_msg1:
-  (Game5_inv_log Game5.log)
-  ==>
-  (Game5_inv_log Game5.log).
-proof.
-proc.
-sp; wp; if=> //.
-+ seq 1 : (#pre); 1: by auto.
-  sp 1; if => //.
-  + auto.
-    move=> &m [#|] *.
-    rewrite /Game5_inv_log.
-    split. smt().
-    split. smt().
-    split. smt().
-    admit.
-  skip.
-  move=> &m [#|] *.
-  by rewrite /Game5_inv_log /#.
-skip.
-move=> &m [#|] *.
-by rewrite /Game5_inv_log /#.
-qed.
-
+op Game5_inv_bind_log 
+  (log : log_entry list)
+  (dm : ((id * id) * msg_data * ctxt, nonce) fmap) 
+=
+  ((forall a i b m1, (exists t, 0 <= t /\ log.[t] = SendMsg1 (a, i, b) (Some m1)) <=> ((a, b), msg1_data a b, m1) \in dm)
+  /\ (forall a b j m1 m2, (exists t, 0 <= t /\ log.[t] = SendMsg2 (b, j, (a, m1)) (Some m2)) <=> ((a, b), msg2_data a b m1, m2) \in dm)
+  /\ (forall a i b m1 m2 m3, (exists t, 0 <= t /\ log.[t] = SendMsg3 (a, i, m2) (Some m3)) <=> ((a, b), msg3_data a b m1 m2, m3) \in dm)).
 
 hoare Game5_inv_log_send_msg2: Game5.send_msg2:
-  (Game5_inv_log Game5.log)
+  (Game5_inv_log Game5.log /\ Game5_inv_bind_log Game5.log Game5.dec_map)
   ==>
-  (Game5_inv_log Game5.log).
+  (Game5_inv_log Game5.log /\ Game5_inv_bind_log Game5.log Game5.dec_map).
 proof.
 proc.
 sp; wp; if=> //.
 + match => //.
-  + auto.
-    move=> &m [#|] *.
-    by rewrite /Game5_inv_log /#.
+  + auto => />.
+    admit. (* later *)
   seq 1 : (#pre); 1: by auto.
   sp 1; if => //.
-  + auto.
-    move=> &m [#|] *.
-    rewrite /Game5_inv_log. smt().
-  skip.
-  move=> &m [#|] *.
-  by rewrite /Game5_inv_log /#.
-skip.
-move=> &m [#|] *.
-by rewrite /Game5_inv_log /#.
-qed.
-
-hoare Game5_inv_log_send_msg3: Game5.send_msg3:
-  (Game5_inv_log Game5.log)
-  ==>
-  (Game5_inv_log Game5.log).
-proof.
-proc.
-sp; wp; if=> //.
-+ sp; match => //; first last.
-  + skip.
-    move=> &m [#|] *.
-    by rewrite /Game5_inv_log /#.
-  + skip.
-    move=> &m [#|] *.
-    by rewrite /Game5_inv_log /#.
-  + skip.
-    move=> &m [#|] *.
-    by rewrite /Game5_inv_log /#.
-  + skip.
-    move=> &m [#|] *.
-    by rewrite /Game5_inv_log /#.
-  sp; match => //.
-  + auto.
-    move=> &m [#|] *.
-    by rewrite /Game5_inv_log /#.
-  seq 1: (#pre); 1: by auto.
-  sp 1; if => //.
-  + auto.
-    move=> &m [#|] *.
-    by rewrite /Game5_inv_log /#.   
-  skip.
-  move=> &m [#|] *.
-  by rewrite /Game5_inv_log /#.
-skip.
-move=> &m [#|] *.
-by rewrite /Game5_inv_log /#.
-qed.
-
+  + auto => /> &m /> bad H ? fin_inv msg3_inv msg2_inv uniq_inv bind_msg1 bind_msg2 bind_msg3 ? ? ?.
+    split. 
+    (* first log invariant *)
+    + split.
+      + move => b j a i m2 m3 s.
+        case (s = 0) => />.
+        case (s < 0); 1: smt(nth_out).
+        move => sneq0 sge0 /fin_inv /(_ a i m2) [] t [slet <-].
+        exists (t+1); smt().
+      split.
+      + move => b j a i m1 m2 m3 s.
+        case (s = 0) => />.
+        case (s < 0); 1: smt(nth_out).
+        move => sneq0 sge0 /msg3_inv /(_ b j m1) [] t [slet <-].
+        exists (t+1); smt().
+      split.
+      + move => b j a i m1 m2 s.
+        case (s = 0) => />.
+        + have := bind_msg1 a{!m} i b{!m} ca{m}.
+          have : ((a{!m}, b{!m}), msg1_data a{!m} b{!m}, ca{m}) \in Game5.dec_map{m}.
+          + rewrite fmapP H.
+            by exists na{m}.
+          move => /> _ t le0t <-.
+          exists (t+1) => //=. 
+          smt().
+        case (s < 0); 1: smt(nth_out).
+        move => sneq0 sge0 /msg2_inv /(_ i) [] t [slet <-].
+        exists (t+1); smt().
+      move => s t.
+      case (s = 0).
+      + case (t = 0); 1: smt().
+        move => tneq0 seq0.
+        admit. (* need that cb is unique *)
+      case (t = 0); 2: smt().
+      move => teq0 sneq0.
+      admit. (* need that cb is unique *)
+    (* next binding invariant *)
+    split; 1: smt(get_setE).
+    split. 
+    + move => a b j m1 m2.
+      split; 1: smt(get_setE mem_set).   
+      rewrite mem_set.
+      case ((((a, b), msg2_data a b m1, m2) \in Game5.dec_map{m})); 1: smt().
+      move => nindm //= equals.
+      exists 0 => //=.      
+      admit. (* How to prove that j = j{m}? *)
+    smt(get_setE).
+  skip => />. 
+  admit. (* later *)
+skip => />.
+admit. (* later *)
+qed. 
 
 lemma Game5_inv_neq_sm a i c j v sm dm nm:
 ! (c = a /\ j = i) =>
