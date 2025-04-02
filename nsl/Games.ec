@@ -1084,7 +1084,7 @@ op Game5_inv_log (log : log_entry list)
 (forall b j a i m1 m2 s, log.[s] = SendMsg2 (b, j, (a, m1)) (Some m2) =>
   exists t, s < t /\ log.[t] = SendMsg1 (a, i, b) (Some m1))
 /\
-(forall s m, m = oget (get_message log.[s]) => forall t, m = oget (get_message log.[t]) => s = t).
+(forall s m, s <= 0 /\ Some m = (get_message log.[s]) => forall t, t <= 0 /\ Some m = (get_message log.[t]) => s = t).
 
 op Game5_inv_bind_log 
   (log : log_entry list)
@@ -1106,7 +1106,7 @@ sp; wp; if=> //.
     admit. (* later *)
   seq 1 : (#pre); 1: by auto.
   sp 1; if => //.
-  + auto => /> &m /> bad H ? fin_inv msg3_inv msg2_inv uniq_inv bind_msg1 bind_msg2 bind_msg3 ? ? ?.
+  + auto => /> &m /> bad H ? fin_inv msg3_inv msg2_inv uniq_inv bind_msg1 bind_msg2 bind_msg3 ? ? H2.
     split. 
     (* first log invariant *)
     + split.
@@ -1134,10 +1134,12 @@ sp; wp; if=> //.
         case (s < 0); 1: smt(nth_out).
         move => sneq0 sge0 /msg2_inv /(_ i) [] t [slet <-].
         exists (t+1); smt().
-      move => s t.
+      move => s sge0 cb' H1 t tge0.
       case (s = 0).
       + case (t = 0); 1: smt().
         move => tneq0 seq0.
+        rewrite H1 seq0 //=.
+        have := bind_msg2 a{m} b{m} j{m} ca{m} cb{m}.
         admit. (* need that cb is unique *)
       case (t = 0); 2: smt().
       move => teq0 sneq0.
