@@ -354,6 +354,14 @@ module Game7 = Game6 with {
 }.
 
 module Game8 = Game7 with {
+  proc send_msg3 [
+    ^if.^match#IPending.^match#Some.^if.^skey<$ ~ { skey <- witness; }
+  ]
+
+  proc rev_skey [
+    ^if.^match#Accepted.^if.^if.^k<- ~ { k <$ dskey; } 
+  ]
+
   proc test [
     ^if.^match#Accepted.^if.^if.^if.^k<- ~ { k <$ dskey; }
   ]

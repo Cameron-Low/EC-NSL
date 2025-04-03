@@ -879,7 +879,6 @@ module (Red_Coll_ideal (A : A_GWAKE) : BD.Adv) (S : BD.ASampler) = {
 (* ------------------------------------------------------------------------------------------ *)
 (* ROM Reduction skeys *)
 
-(*
 clone PROM.FullRO as KROc with
   type in_t    <= trace,
   type out_t   <= skey,
@@ -888,7 +887,7 @@ clone PROM.FullRO as KROc with
   type d_out_t <= bool
 proof *.
 
-module (Red_ROM_sk_1 (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
+module (Red_ROM_sk_real (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
   module WAKE_O : GWAKE_out = Game7 with {
     proc send_msg3 [
       ^if.^match#IPending.^match#Some.^if.^skey<$ ~ {
@@ -907,14 +906,14 @@ module (Red_ROM_sk_1 (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
   }
 
   proc distinguish() = {
-    var b;
-    WAKE_O.init_mem();
-    b <@ D(WAKE_O).run();
-    return b;
+    var b';
+    WAKE_O.init_mem(false);
+    b' <@ D(WAKE_O).run();
+    return b';
   }
 }.
 
-module (Red_ROM_sk_2 (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
+module (Red_ROM_sk_ideal (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
   module WAKE_O : GWAKE_out = Game7 with {
     proc send_msg3 [
       ^if.^match#IPending.^match#Some.^if.^skey<$ ~ {
@@ -928,27 +927,25 @@ module (Red_ROM_sk_2 (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
     ]
 
     proc test [
-      var v : skey
-      ^if.^match#Accepted.^if.^if.^k<- ~ {
-        k <$ dskey;
-        v <@ O.get(trace);
-      }
+      ^if.^match#Accepted.^if.^if.^if.^k<- ~ { k <@ O.get(trace); }
     ]
   }
 
   proc distinguish() = {
-    var b;
-    WAKE_O.init_mem();
-    b <@ D(WAKE_O).run();
-    return b;
+    var b';
+    WAKE_O.init_mem(true);
+    b' <@ D(WAKE_O).run();
+    return b';
   }
-}.*)
+}.
+
+
 (* ------------------------------------------------------------------------------------------ *)
 (* Security Proof *)
 (* ------------------------------------------------------------------------------------------ *)
 section.
 
-declare module A <: A_GWAKE {-GWAKEb, -Game1, -Game2, -Game3, -Game4, -Game5, -Game6, -Game7, -Game8, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD_real, -Red_AEAD_ideal, -Red_Coll_real, -Red_Coll_ideal, -Red_ROM_real, -Red_ROM_ideal, -Red_PRF_real, -Red_PRF_ideal, -RO, -FRO, -BD.Sample}.
+declare module A <: A_GWAKE {-GWAKEb, -Game1, -Game2, -Game3, -Game4, -Game5, -Game6, -Game7, -Game8, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD_real, -Red_AEAD_ideal, -Red_Coll_real, -Red_Coll_ideal, -Red_ROM_real, -Red_ROM_ideal, -Red_PRF_real, -Red_PRF_ideal, -RO, -FRO, -BD.Sample, -KROc.RO, -KROc.FRO, -Red_ROM_sk_real, -Red_ROM_sk_ideal}.
 
 declare axiom A_ll:
 forall (GW <: GWAKE_out{-A}),
@@ -968,227 +965,43 @@ proof.
 admitted.
 
 
-(*
 (* ------------------------------------------------------------------------------------------ *)
-(* Step 7 aux: Show the two reductions on sk are equivalent *)
-
-inductive Game7_inv 
-  (sm: (id * int, role * instance_state) fmap)
-  (a: id) (i: int)
-=
-| Game7_undef of
-    (sm.[a, i] = None)
-  & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
-| Game7_aborted r of
-    (sm.[a, i] = Some (r, Aborted))
-  & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
-| Game7_ipending b c1 of
-    (sm.[a, i] = Some (Initiator, IPending (b, witness, witness, c1) (a, c1)))
-  & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
-| Game7_rpending b c1 c2 of
-    (sm.[a, i] = Some (Responder, RPending (b, witness, witness, witness, c1, c2) (b, c1) c2))
-  & (get_partners (a, i) (get_trace (oget sm.[a, i]).`2) (oget sm.[a, i]).`1 sm = fset0)
-| Game7_accepted r tr k of
-    (sm.[a, i] = Some (r, Accepted tr k))
-| Game7_observed r tr k of
-    (sm.[a, i] = Some (r, Observed tr k)).
-
-
-
-equiv red_sk: A(Red_ROM_sk_1(A, KROc.LRO).WAKE_O).run ~ A(Red_ROM_sk_2(A, KROc.LRO).WAKE_O).run:
-  ={glob KROc.RO, glob A}
-  /\ ={state_map, psk_map, dec_map, bad, prfkey_map, sk_map}(Red_ROM_sk_1.WAKE_O, Red_ROM_sk_2.WAKE_O)
-  /\ Red_ROM_sk_1.WAKE_O.state_map{1} = empty
- ==>
-  ={res}. 
-
-proc( 
-    ={state_map, psk_map, dec_map, bad, prfkey_map, sk_map}(Red_ROM_sk_1.WAKE_O, Red_ROM_sk_2.WAKE_O)
-    /\ (forall t, t \in KROc.RO.m{1} <=> t \in KROc.RO.m{2})
-    /\ (forall h r tr k, Red_ROM_sk_1.WAKE_O.state_map.[h] = Some (r, Accepted tr k) => 
-                       card (get_observed_partners h Red_ROM_sk_1.WAKE_O.state_map) = 0 =>
-                       tr \notin KROc.RO.m){1}
-    /\ (forall h h' r tr k k', Red_ROM_sk_1.WAKE_O.state_map.[h] = Some (r, Accepted tr k) => 
-                       Red_ROM_sk_1.WAKE_O.state_map.[h'] = Some (r, Accepted tr k') => 
-                       h = h'){1}
-)=> //.
-
-- smt(emptyE).
-
-- by sim />.
-
-- proc; inline*. 
-  sp; wp; if => //.
-  seq 1 1 : (#pre /\ ={ca}); 1: by auto.
-  sp 1 1; if => //.
-  auto => /> &1 &2. (*
-  case (h = (a, i){2}) => eqh.
-  + smt(get_set_sameE).
-  rewrite get_set_neqE //.*)
-  admit. (* lemma on card update is not change *)
-
-- proc; inline*.
-  sp; wp; if => //.
-  match = => // [|na]. (*
-  + auto => /> &1 &2 ? ? ? ? ? ? ? ? ? h ? ? ?. 
-    case (h = (b, j){2}) => eqh. 
-    + smt(get_set_sameE).
-    rewrite get_set_neqE //.  
-    admit. (* lemma on card update is not change *)
-  auto => /> &1 &2 ? ? ? ? ? ? ? ? ? ? ? ? h ? ? ?.
-  case (h = (b, j){2}) => eqh. 
-  + smt(get_set_sameE).
-  rewrite get_set_neqE //. *)
-  admit. (* lemma on card update is not change *)
-  admit.
-
-- proc; inline*.
-  sp; wp; if=> //. 
-  sp; match = => //.
-  + smt().  
-  move=> s m1.
-  sp; match =.
-  + smt().
-  + auto => /> &1 &2 *.  
-    split; 2: smt(get_setE).
-    move => h.
-    case (h = (a, i){2}) => eqh. 
-    + smt(get_set_sameE).
-    rewrite get_set_neqE //.
-    admit. (* lemma on card update is not change *)
-  move=> nb.
-  seq 1 1 : (#pre /\ ={caf}); 1: by auto.
-  sp; if=> //. 
-  auto => /> &1 &2 *.
-  split.
-  + move => h.
-    case (h = (a, i){2}) => eqh. 
-    + admit. (* Update myself *)
-    rewrite get_set_neqE //.  
-    admit. (* if new partner it cannot be observed *)
-  move => h h'.
-  case (h = (a, i){2}) => eqh.
-  + rewrite eqh get_set_sameE.
-    case (h' = (a, i){2}) => eqh'.
-    + by rewrite eqh'.
-      rewrite get_set_neqE //.
-      move => />.
-      admit. (* contradiction from caf *)
-  rewrite get_set_neqE //.
-  case (h' = (a, i){2}) => eqh'.
-  + rewrite eqh' get_set_sameE.
-    move => />.
-    admit. (* same as above *)
-  rewrite get_set_neqE //.
-  smt().  
-
-- proc; inline*.
-  sp; wp ^if ^if; if=> //. 
-  sp; match = => //.
-  + smt().
-  move=> s m1 m2. 
-  sp; match =.
-  + smt().
-  + auto=> /> &1 &2 *.
-    split; 2: smt(get_setE).
-    move => h.
-    case (h = (b, j){2}) => eqh. 
-    + smt(get_set_sameE).
-    rewrite get_set_neqE //=.
-    admit. (* lemma on card update is not change *)
-  move=> nok.
-  auto => /> &1 &2 *.
-  split. 
-  + move => h.
-    case (h = (b, j){2}) => eqh. 
-    + rewrite eqh get_set_sameE.
-      admit. (* If I just update to Accepted the sk is not sampled yet *)
-    rewrite get_set_neqE //.  
-    admit. (* lemma on card update is not change *)
-  move => h h'.
-  case (h = (b, j){2}) => eqh.
-  + rewrite eqh get_set_sameE.
-    case (h' = (b, j){2}) => eqh'.
-    + by rewrite eqh'.
-      rewrite get_set_neqE //.
-      move => />.
-      admit. (* contradiction from caf *)
-  rewrite get_set_neqE //.
-  case (h' = (b, j){2}) => eqh'.
-  + rewrite eqh' get_set_sameE.
-    move => />.
-    admit. (* same as above *)
-  rewrite get_set_neqE //.
-  smt().  
-
-- proc.
-  sp; wp ^if ^if; if=> //.
-  sp; match = => //.
-  + smt().
-  move=> tr k'.
-  sp; if=> //.
-  + smt().
-  inline.
-  sp; if => //.
-  sp; seq 1 1 : (={r} /\ #pre); 1: by auto => />.
-  if => //.
-  + smt().
-  + auto => /> &1 &2 *. 
-    split. smt(get_setE).
-    split. smt(get_setE).
-    split. smt(get_setE mem_set).
-    split; 2: smt(get_setE).
-    move => h r0 tr0 k0.
-    rewrite get_set_sameE => /=.
-    case (h = (a, i){2}).
-    + smt(get_setE).
-    move => hneqai.
-    rewrite get_set_neqE => //=.
-    case (tr0 = tr).
-    + case (r0 <> role{1}).
-      + rewrite /get_observed_partners.
-        rewrite /get_partners filter_set get_set_neqE => //=.
-        move => rneq <- -> /=.
-        rewrite eq_sym in hneqai.
-        rewrite eq_sym in rneq.
-        rewrite hneqai rneq /=.
-        rewrite fdom_set filterU filter1 /= get_set_sameE /=.
-        rewrite /(\o) /=.
-        smt(@FSet).
-      smt(get_setE).
-    admit. (* not partnered before implies not partnered after update *)
-  exfalso=> />.
-  smt().
- 
-- proc.
-  sp; wp ^if ^if; if=> //.
-  sp; match = => //.
-  + smt().
-  move=> tr k'.
-  sp; if=> //.
-  + smt().
-  inline.
-  sp; if => //.
-  swap {2} [^x<- .. ^r<$] @ ^k<$.
-  sp; seq 1 2 : (r{1} = k{2} /\ #pre); 1: by auto => />.
-  if => //.
-  + smt().
-  + auto => />. admit. (* smt(get_setE). *)
-  exfalso=> />.
-  smt(). (* Invariant that if no observed partner, no key has been sampled *)
-
-qed.
-
-(* ------------------------------------------------------------------------------------------ *)
-(* Step 7: Move randomly sample the skey in test *)
-lemma Step7 &m:
-    Pr[E_GWAKE(Game7, A).run() @ &m : res] = Pr[E_GWAKE(Game8, A).run() @ &m : res].
+(* Step 8: Relating real and ideal side *)
+lemma Step8 &m:
+    Pr[E_GWAKE(Game8, A).run(false) @ &m : res] = Pr[E_GWAKE(Game8, A).run(true) @ &m : res].
 proof.
 byequiv => //.
 proc*.
-transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_1(A), KROc.RO).distinguish(); }.
+inline; wp.
+call (: ={state_map, psk_map, dec_map, bad, prfkey_map, sk_map}(Game8, Game8) /\ Game8.b0{1} = false /\ Game8.b0{2} = true); 1, 2, 3, 4, 5, 6: sim />.
+
++ proc; inline.
+  sp; if => //.
+  sp; match = => //; 1: smt().
+  move => tr sk.
+  sp; if => //. smt().
+  sp; if => //.
+  rcondt{1} ^if; 1: by auto.
+  rcondf{2} ^if; 1: by auto.
+  auto => /#.
+
+auto => />.
+qed. 
+
+(* ------------------------------------------------------------------------------------------ *)
+(* Step 7: Delaying sampling of the keys *)
+lemma Step7 bit &m:
+    Pr[E_GWAKE(Game7, A).run(bit) @ &m : res] = Pr[E_GWAKE(Game8, A).run(bit) @ &m : res].
+proof.
+byequiv => //.
+proc*.
+
+case (bit).
+
+(* Proof for the ideal side *)
+transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_ideal(A), KROc.RO).distinguish(); }.
 + inline*; wp.
-  call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game7, Red_ROM_sk_1.WAKE_O)
+  call(: ={b0, state_map, psk_map, dec_map, bad, prfkey_map}(Game7, Red_ROM_sk_ideal.WAKE_O)
          /\ Game7.sk_map{1} = KROc.RO.m{2}
   /\ (forall h r tr k, Game7.state_map.[h] = Some (r, Accepted tr k) => tr \in Game7.sk_map){1}
   /\ (forall a b m1 m2 m3, ((a, b), msg3_data a b m1 m2, m3) \in Game7.dec_map => ((a, m1), m2, m3) \in Game7.sk_map){1}
@@ -1257,20 +1070,18 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_1(A), KROc.RO).distinguish(); }.
     sp ^if & -1 ^if & -1; if => //.
     + smt().
     sp ^if & -1 ^if & -1; if=> //.
-    auto=> /> &1 &2.
+    if => //.
+    + auto=> /> &1 &2.
+      smt(get_setE).
+    auto => />.
     smt(get_setE).
   
   auto=> />.
   smt(emptyE).
 
-rewrite equiv [{1} 1 (KROc.FullEager.RO_LRO (Red_ROM_sk_1(A)) _)]; 1: by move=> _; exact dskey_ll.
-transitivity* {2} { r <@ KROc.MainD(Red_ROM_sk_2(A), KROc.RO).distinguish(); }.
-+ rewrite equiv [{2} 1 (KROc.FullEager.RO_LRO (Red_ROM_sk_2(A)) _)]; 2: by move=> _; exact dskey_ll.
-  inline*; wp.
-  call red_sk. auto.
-
+rewrite equiv [{1} 1 (KROc.FullEager.RO_LRO (Red_ROM_sk_ideal(A)) _)]; 1: by move=> _; exact dskey_ll.
 inline*; wp.
-call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game8)
+call(: ={b0, state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_ideal.WAKE_O, Game8)
        /\ (Game8.sk_map{2} = KROc.RO.m{1})
 /\ (forall h r tr k, Game8.state_map{2}.[h] = Some (r, Accepted tr k) => tr \in Game8.sk_map{2})
 /\ (forall a b m1 m2 m3, ((a, b), msg3_data a b m1 m2, m3) \in Game8.dec_map => ((a, m1), m2, m3) \in Game8.sk_map){2}
@@ -1304,8 +1115,8 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
   move=> nb.
   seq 1 1 : (#pre /\ ={caf}); 1: by auto.
   sp; if=> //.
-  auto=> />.
-  smt(mem_set get_setE).
+  auto=> /> &1 &2 *.
+  admit.
 
 - proc; inline*.
   sp; wp ^if ^if; if=> //. 
@@ -1329,7 +1140,7 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
   + smt().
   sp ^if & -1 ^if & -1; if=> //.
   auto=> /> &1 &2 *.
-  smt(get_setE).
+  admit.
 
 - proc; inline*. 
   sp; wp ^if ^if; if => //.
@@ -1339,13 +1150,13 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_2.WAKE_O, Game
   sp ^if & -1 ^if & -1; if => //.
   + smt().
   sp ^if & -1 ^if & -1; if=> //.
-  swap {1} ^r<$ @ ^k<$.
-  auto=> /> &1 &2 *.
-  smt(get_setE).
+  admit.
 
 auto=> />.
 smt(emptyE).
-qed.*)
+
+admit. (* Repeat on the real side *)
+qed.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 0: Inline procedure calls, and remove pskeys from the state using psk_map to retrieve. *)
