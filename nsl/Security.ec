@@ -887,6 +887,8 @@ clone PROM.FullRO as KROc with
   type d_out_t <= bool
 proof *.
 
+print Game7.
+
 module (Red_ROM_sk_real (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
   module WAKE_O : GWAKE_out = Game7 with {
     proc send_msg3 [
@@ -902,6 +904,7 @@ module (Red_ROM_sk_real (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = {
 
     proc test [
       ^if.^match#Accepted.^if.^if.^if.^k<- ~ { k <@ O.get(trace); }
+      ^if.^match#Accepted.^if.^if.^if?^k<$ + ^ { k <@ O.get(trace); }
     ]
   }
 
@@ -927,6 +930,7 @@ module (Red_ROM_sk_ideal (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = 
     ]
 
     proc test [
+      ^if.^match#Accepted.^if.^if.^if?^k<$ + ^ { k <@ O.get(trace); }
       ^if.^match#Accepted.^if.^if.^if.^k<- ~ { k <@ O.get(trace); }
     ]
   }
@@ -939,6 +943,7 @@ module (Red_ROM_sk_ideal (D : A_GWAKE) : KROc.RO_Distinguisher) (O : KROc.RO) = 
   }
 }.
 
+print Red_ROM_sk_real.WAKE_O.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Security Proof *)
@@ -1064,7 +1069,7 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_ideal(A), KROc.RO).distinguish();
 
   - proc; inline*. 
     sp; wp ^if ^if; if => //.
-    sp; match = => //.
+    sp 1 1. admit. (*match = => //.
     + smt().
     move=> tr k'.
     sp ^if & -1 ^if & -1; if => //.
@@ -1074,7 +1079,7 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk_ideal(A), KROc.RO).distinguish();
     + auto=> /> &1 &2.
       smt(get_setE).
     auto => />.
-    smt(get_setE).
+    smt(get_setE).*)
   
   auto=> />.
   smt(emptyE).
@@ -1116,7 +1121,8 @@ call(: ={b0, state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_ideal.WAKE
   seq 1 1 : (#pre /\ ={caf}); 1: by auto.
   sp; if=> //.
   auto=> /> &1 &2 *.
-  admit.
+  split. admit.
+  smt(get_setE mem_set).
 
 - proc; inline*.
   sp; wp ^if ^if; if=> //. 
@@ -1140,9 +1146,10 @@ call(: ={b0, state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_ideal.WAKE
   + smt().
   sp ^if & -1 ^if & -1; if=> //.
   auto=> /> &1 &2 *.
+  split. smt(get_setE mem_set).
   admit.
 
-- proc; inline*. 
+- proc; inline*.
   sp; wp ^if ^if; if => //.
   sp; match = => //.
   + smt().
@@ -1150,7 +1157,12 @@ call(: ={b0, state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk_ideal.WAKE
   sp ^if & -1 ^if & -1; if => //.
   + smt().
   sp ^if & -1 ^if & -1; if=> //.
-  admit.
+  if => //.
+    auto => /> &1 &2 *.
+    split. smt(get_setE mem_set). 
+    admit.
+  auto => /> &1 &2 *.
+  smt(get_setE mem_set).
 
 auto=> />.
 smt(emptyE).
@@ -3226,3 +3238,13 @@ auto=> />.
 by smt(emptyE).
 qed.
 
+
+
+lemma final &m: `| Pr[E_GWAKE(GWAKEb(NSL), A).run(false) @ &m : res] - Pr[E_GWAKE(GWAKEb(NSL), A).run(true) @ &m : res]|
+  <=  `|Pr[E_GAEAD(GAEAD0, Red_AEAD_ideal(A)).run() @ &m : res] - Pr[E_GAEAD(GAEAD1, Red_AEAD_ideal(A)).run() @ &m : res]|
+      + `|Pr[E_GPRF(PRF0, Red_PRF_ideal(A)).run() @ &m : res] - Pr[E_GPRF(PRF1, Red_PRF_ideal(A)).run() @ &m : res]|
+      + 2%r * ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt).
+proof.
+rewrite !Step0.
+admit.
+qed. 
