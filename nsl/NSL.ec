@@ -43,6 +43,7 @@ clone import GWAKE as GWAKEc with
   
 clone import Aead as AEADc with
   type handle  <- ids,
+  type d_in_t  <- bool,
   type key         <- pskey,
   type data        <- msg_data,
   type ptxt        <- nonce,
@@ -56,6 +57,7 @@ proof *.
 
 clone import PRF as PRFc with 
   type handle <- msg_data * ctxt,
+  type d_in_t <- bool,
   type key    <- nonce * nonce,
   type D      <- ids,
   type R      <- skey, 

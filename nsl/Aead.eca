@@ -2,6 +2,7 @@ require import Distr FMap.
 
 type key, data, ctxt, ptxt.
 type handle.
+type d_in_t.
 
 op dkey : key distr.
 op dctxt : ctxt distr.
@@ -105,16 +106,16 @@ module GAEAD1 : GAEAD_out_i = {
 (********************************************************************************)
 (* Adversary and Experiment *)
 module type A_GAEAD (GA : GAEAD_out) = {
-  proc run() : bool
+  proc run(_: d_in_t) : bool
 }.
 
 module E_GAEAD (O : GAEAD_out_i) (A : A_GAEAD) = {
-  proc run() : bool = {
+  proc run(x : d_in_t) : bool = {
     var b : bool;
 
     O.init_mem();
     
-    b <@ A(O).run();
+    b <@ A(O).run(x);
     
     return b;
   }

@@ -53,7 +53,7 @@ module Game1 = {
       na <$ dnonce;
       ca <$ enc (oget psk_map.[(a, b)]) (msg1_data a b) na;
       mo <- Some ca;
-      state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, ca) (a, ca));
+      state_map.[(a, i)] <- (Initiator, IPending (b, witness, na, oget mo) (a, oget mo));
     }
     return mo;
   }
@@ -69,7 +69,7 @@ module Game1 = {
         nb <$ dnonce;
         cb <$ enc (oget psk_map.[(a, b)]) (msg2_data a b ca) nb;
         mo <- Some cb;
-        state_map.[(b, j)] <- (Responder, RPending (a, witness, na, nb, ca, cb) m1 cb);
+        state_map.[(b, j)] <- (Responder, RPending (a, witness, na, nb, ca, oget mo) m1 (oget mo));
       } else {
         state_map.[(b, j)] <- (Responder, Aborted);
       }
@@ -90,7 +90,7 @@ module Game1 = {
           caf <$ enc (oget psk_map.[(a, b)]) (msg3_data a b ca m2) ok;
           mo <- Some caf;
           skey <- prf (na, nb) (a, b);
-          state_map.[(a, i)] <- (Initiator, Accepted ((a, ca), m2, caf) skey);
+          state_map.[(a, i)] <- (Initiator, Accepted ((a, ca), m2, oget mo) skey);
          } else {
           state_map.[(a, i)] <- (Initiator, Aborted);
         }
@@ -353,8 +353,6 @@ module Game7 = Game6 with {
   ]
 }.
 
-print Game7.
-
 module Game8 = Game7 with {
   proc send_msg3 [
     ^if.^match#IPending.^match#Some.^if.^skey<$ ~ { skey <- witness; }
@@ -365,8 +363,7 @@ module Game8 = Game7 with {
   ]
 
   proc test [
-    ^if.^match#Accepted.^if.^if.^if.^k<- ~ { k <$ dskey; }
-    ^if.^match#Accepted.^if.^if.^if?^k<$ + ^ { k <$ dskey; }
+    ^if.^match#Accepted.^if.^if.^if ~ { k <$ dskey; }
   ]
 }.
 (* ------------------------------------------------------------------------------------------ *)
