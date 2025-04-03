@@ -93,14 +93,17 @@ module type GWAKE_out = {
 module type GWAKE_out_i = {
   include GWAKE_out 
 
-  proc init_mem() : unit
+  proc init_mem(b: bool) : unit
 }.
 
 module GWAKEb (P : AKE_Scheme) = {
+  var b0 : bool
+
   var state_map: (id * int, role * instance_state) fmap
   var psk_map: (id * id, pskey) fmap
 
-  proc init_mem() : unit = {
+  proc init_mem(b: bool) : unit = {
+    b0 <- b;
     state_map <- empty;
     psk_map <- empty;
   }
@@ -217,16 +220,6 @@ module GWAKEb (P : AKE_Scheme) = {
     }
     return ko;
   }
-}.
-
-module GWAKE0 (P : AKE_Scheme) : GWAKE_out_i = {
-  include var GWAKEb(P)
-
-  proc test = GWAKEb(P).rev_skey
-}.
-
-module GWAKE1 (P : AKE_Scheme) : GWAKE_out_i = {
-  include var GWAKEb(P)
 
   proc test(a: id, i: int) : key option = {
     var role, st, ps, k;
@@ -242,7 +235,11 @@ module GWAKE1 (P : AKE_Scheme) : GWAKE_out_i = {
           ps <- get_observed_partners (a, i) state_map;
           (* If we have no observed partners then, we can test *)
           if (card ps = 0) {
-            k <$ dkey;
+            if (b0 = false) {
+              k <- k';
+            } else {
+              k <$ dkey;
+            }
             ko <- Some k;
             state_map.[(a, i)] <- (role, Observed trace k);
           }
@@ -267,13 +264,13 @@ module type A_GWAKE (GW : GWAKE_out) = {
 }.
 
 module E_GWAKE (O : GWAKE_out_i) (A : A_GWAKE) = {
-  proc run() : bool = {
-    var b : bool;
+  proc run(b: bool) : bool = {
+    var b' : bool;
 
-    O.init_mem();
+    O.init_mem(b);
     
-    b <@ A(O).run();
+    b' <@ A(O).run();
     
-    return b;
+    return b';
   }
 }.
