@@ -471,8 +471,12 @@ inline; wp.
 call(: ={state_map, psk_map, dec_map, bad, prfkey_map, sk_map}(Red_ROM_sk.WAKE_O, Red_ROM_sk.WAKE_O)
      /\ Red_ROM_sk.WAKE_O.b0{1}
      /\ !Red_ROM_sk.WAKE_O.b0{2}
+     /\ (forall h r tr k, Red_ROM_sk.WAKE_O.state_map{1}.[h] = Some (r, Accepted tr k) 
+            /\ card (get_observed_partners (h) Red_ROM_sk.WAKE_O.state_map{1}) = 0
+          => tr \notin KROc.RO.m{1})
      /\ (forall h, h \in KROc.RO.m{1} <=> h \in KROc.RO.m{2})
-); 1..5: by sim />.
+); 1 .. 5: admit.
+
 - proc.
   sp; if => //.
   sp; match = => //.
@@ -483,11 +487,20 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map, sk_map}(Red_ROM_sk.WAKE_O
   sp ^if & -1 ^if & -1; if => //.
   inline.
   rcondt {1} ^if.
-  + auto => />.
-    admit. (* INV: No observed partners => no key stored yet *)
+  + auto => /#.
   rcondt {2} ^if.
-  + admit. (* trivial from inv and above *)
-  auto => />.
+  + auto => /#.
+  auto => /> &1 &2 ? ? ? ? H ? ? ? ? sk _.
+  split.
+  smt(mem_set get_setE).
+  split.   
+  smt(mem_set get_setE).
+  split. move => h r0 tr0 k0. 
+  rewrite get_set_sameE.
+  case (h = (a, i){2}) => handle.
+    rewrite handle get_set_sameE. smt().
+  rewrite get_set_neqE; 1: by done.
+  admit. (* tr0 is only in ste if tr = tr0, but then the card is not equal 0 *)
   smt(mem_set get_setE).
 
 - proc.
@@ -500,13 +513,21 @@ call(: ={state_map, psk_map, dec_map, bad, prfkey_map, sk_map}(Red_ROM_sk.WAKE_O
   sp ^if & -1 ^if & -1; if => //.
   inline.
   rcondt {1} ^if.
-  + auto => />.
-    admit. (* INV: No observed partners => no key stored yet *)
+  + auto => /#.
   rcondt {2} ^if.
-  + admit. (* trivial from inv and above *)
+  + auto => /#.
   rcondt {1} ^if; 1: by auto.
   rcondf {2} ^if; 1: by auto.
-  auto => />.
+  auto => /> &1 &2 ? ? ? ? H ? ? ? ? sk _ kl _.
+  split.
+  smt(mem_set get_setE).
+  split.   
+  smt(mem_set get_setE).
+  split. move => h r0 tr0 k0. 
+  case (h = (a, i){2}) => handle.
+    rewrite handle get_set_sameE. smt().
+  rewrite get_set_neqE; 1: by done.
+  admit. (* tr0 is only in ste if tr = tr0, but then the card is not equal 0 *)
   smt(get_setE mem_set).
 
 auto => />.
@@ -2075,5 +2096,27 @@ lemma final &m: `| Pr[E_GWAKE(GWAKEb(NSL), A).run(false) @ &m : res] - Pr[E_GWAK
       + 2%r * ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt).
 proof.
 rewrite !Step0.
-admit.
+do rewrite - Step1 -Step5 Step6 -Step4 -Step3.
+apply (StdOrder.RealOrder.ler_trans 
+        (`|Pr[E_GWAKE(Game1, A).run(false) @ &m : res] -
+  Pr[E_GWAKE(Game2, A).run(false) @ &m : res]| +
+`|Pr[E_GWAKE(Game1, A).run(true) @ &m : res] -
+  Pr[E_GWAKE(Game2, A).run(true) @ &m : res]| +
+`|Pr[E_GWAKE(Game2, A).run(false) @ &m : res] -
+  Pr[E_GWAKE(Game2, A).run(true) @ &m : res]|)).
+smt(StdOrder.RealOrder.ler_norm_add).
+have : `|Pr[E_GWAKE(Game2, A).run(false) @ &m : res] -
+  Pr[E_GWAKE(Game2, A).run(true) @ &m : res]| <=
+`|Pr[E_GWAKE(Game3, A).run(false) @ &m : res] -
+  Pr[E_GWAKE(Game7, A).run(false) @ &m : res]| +
+`|Pr[E_GWAKE(Game3, A).run(true) @ &m : res] -
+  Pr[E_GWAKE(Game7, A).run(true) @ &m : res]| +
+2%r * ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt); last by smt(StdOrder.RealOrder.ler_add2l).
+apply (StdOrder.RealOrder.ler_trans 
+        (`|Pr[E_GWAKE(Game3, A).run(false) @ &m : res] -
+  Pr[E_GWAKE(Game3, A).run(true) @ &m : res]| +
+2%r * ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt)
+)); 1: by smt(StdOrder.RealOrder.ler_norm_add Step2 Step2b).
+rewrite StdOrder.RealOrder.ler_add2r.
+smt(StdOrder.RealOrder.ler_norm_add Step7).
 qed. 
