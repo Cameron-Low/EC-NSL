@@ -1331,7 +1331,6 @@ smt(get_setE).
 
 smt(get_setE).
 
-(**)
 case: (role{m} = Responder) => [->> | /#].
 have smai : Game8.state_map.[a, i]{m} = Some (Responder, Accepted trace{m} k'{m}) by smt().
 case (inv1 a{m} i{m}); rewrite smai //=.
@@ -1588,7 +1587,6 @@ smt(get_setE).
 
 smt(get_setE).
 
-(**)
 case: (role{m} = Responder) => [->> | /#].
 have smai : Game8.state_map.[a, i]{m} = Some (Responder, Accepted trace{m} k'{m}) by smt().
 case (inv1 a{m} i{m}); rewrite smai //=.
