@@ -410,14 +410,12 @@ inductive Game8_inv
   & (c1 \in get_msgs st /\ c2 \in get_msgs st)
   & (c3 \in get_msgs st <=> get_trace st <> None)
   & (!is_observed st => ((a, c1), c2, c3) \notin skm)
-  & ((b, j) <> (a, i))
 | Game8_accepted_r b j st c1 c2 c3 of
     (sm.[a, i] = Some (Responder, Accepted ((b, c1), c2, c3) witness))
   & (((b, a), msg3_data b a c1 c2, c3) \in dm)
   & (sm.[b, j] = Some (Initiator, st))
-  & (c1 \in get_msgs st /\ c2 \in get_msgs st /\ c3 \in get_msgs st)
+  & (get_trace st = Some ((b, c1), c2, c3))
   & (!is_observed st => ((b, c1), c2, c3) \notin skm)
-  & ((b, j) <> (a, i))
 | Game8_observed r id1 id2 c1 c2 c3 k of
     (sm.[a, i] = Some (r, Observed ((id1, c1), c2, c3) k))
   & (((id1, id2), msg3_data id1 id2 c1 c2, c3) \in dm)
@@ -558,7 +556,7 @@ case (c = ca{m}) => /> => [| neq].
     + move => /> b j stb c1 c2 c3.
       case (inv2 c3); smt().
     move => /> id1 id2 c1 c2 c3.
-    case (inv2 c3); smt().
+    by case (inv2 c3); smt().
 
 case (inv2 c).
 + move => ndm1 ndm2 ndm3.
@@ -727,7 +725,7 @@ move => c.
 case (c = cb{m}) => /> => [| neq].
 + apply (Game8_dm_m2 _ _ _ a{m} b{m} j{m} (RPending (a, witness, witness, witness, ca, cb){m} (a, ca){m} cb{m}) ca{m}) => //.
   + smt(mem_set). 
-  + by rewrite mem_set; right.
+  + by rewrite mem_set.
   + by rewrite get_set_sameE.
   + move => [a' i'] st'.
     rewrite get_setE.
@@ -884,8 +882,6 @@ case: ((a', i') = (a, i){m}) => /> => [| neq].
       case (inv2 c3); smt().
     + move =>  /> id1 id2 c1 c2 c3.
       case (inv2 c3); smt().
-  + smt().
-  move : smbj.
   smt().
 
 case (inv1 a' i').
@@ -1033,7 +1029,7 @@ sp; match => //.
   + move => a' i st c1 c2 c3.
     case ((a', i) = (b, j){m}).
     + move => />.
-      rewrite smbj => /> smbj' dmc3 nsk ? ? ? ?.
+      rewrite smbj => /> smbj' dmc3 nsk ? ? ?.
       apply (Game8_accepted_i _ _ _ _ _ b{m} j{m} (Aborted (R2 ca{m} cb{m})) c1 c2 c3) => //.
       + by rewrite get_set_neqE.
       smt(get_setE).
@@ -1096,11 +1092,11 @@ case: ((b', j') = (b, j){m}) => /> => [|neq_bj].
 - apply (Game8_accepted_r _ _ _ _ _ a{m} i sta ca{m} cb{m} m3{m}) => //.
   + smt(get_setE).
   + smt(get_setE).
-  + case (inv1 a{m} i); rewrite smai //.
-    + smt(get_setE).
-    + smt(get_setE).
-    case (inv2 cb{m}); smt().
-  move : smai => /#.
+  + by case: (inv1 a{m} i); rewrite smai=> // /#.
+  + case (inv1 a{m} i); rewrite smai=> // />.
+    + smt().
+    + smt().
+    by case (inv2 cb{m})=> /#.
 
 case (inv1 b' j').
 + move => sm.
@@ -1124,7 +1120,7 @@ case (inv1 b' j').
 + move => b'' j'' st c1 c2 c3.
   case ((b'', j'') = (b, j){m}).
   + move => />.
-    rewrite smbj => /> smbj' dmc3 nsk ? ? ? ?.
+    rewrite smbj => /> smbj' dmc3 nsk ? ? ?.
     apply (Game8_accepted_i _ _ _ _ _ b{m} j{m} (Accepted ((a, ca), cb, m3) witness){m} c1 c2 c3) => //.
     + by rewrite get_set_neqE.
     + by rewrite get_set_sameE.
@@ -1230,10 +1226,9 @@ rcondt ^if.
 auto => /> &m st inv1 inv2 inv3 inv4 aiin card_ps card_obs_ps sk _. 
 rewrite get_set_sameE //=.
 
-case: (role{m} = Initiator) => [->> | neqInit].
-have smai : Game8.state_map.[a, i]{m} = Some (Initiator, Accepted trace{m} k'{m}) by smt().
-case (inv1 a{m} i{m}); rewrite smai //=.
-move => /> b j stb c1 c2 c3 !->> dmc3 nskm smbj c1_in_stb c2_in_stb c3_in_stb neqbj.
+case: (role{m}) aiin st card_ps=> /> /domE; case _: (Game8.state_map.[a, i]{m})=> /> smai card_ps.
+case (inv1 a{m} i{m}); rewrite smai=> //=.
+move => /> b j stb c1 c2 c3 !->> dmc3 smbj c1_in_stb c2_in_stb c3_in_stb nskm.
 do! split.
 
 (* State Map invariant *)
@@ -1262,7 +1257,7 @@ case (inv1 a' i').
 + move => b' c1' c2' sma' dmc2.
   apply (Game8_rpending _ _ _ _ _ b' c1' c2') => //.
   by rewrite get_set_neqE.
-+ move => b' j' stb' c1' c2' c3' sma' dmc3' smbj' c_in_stb' c3'_tr obs_sk neqbj'.
++ move => b' j' stb' c1' c2' c3' sma' dmc3' smbj' c_in_stb' c3'_tr obs_sk.
   apply (Game8_accepted_i _ _ _ _ _ b' j' stb' c1' c2' c3') => //.
   + by rewrite get_set_neqE.
   + smt(get_setE).
@@ -1271,19 +1266,18 @@ case (inv1 a' i').
   case ((b'', j') = (a, i){m}).
   + move => />.
     rewrite smai => /> smai' dmc3'.
-    case (inv2 c3); 1..3: smt(get_setE).
-    case (c3 = c3');2: smt(get_setE).
+    case (inv2 c3'); 1..3: smt().
     move => />.
     have /> := inv3 _ _ _ _ _ dmc3 dmc3'.
     move => *.
     apply (Game8_accepted_r _ _ _ _ _ a{m} i{m} (Observed ((a{m}, c1'), c2', c3') sk) c1' c2' c3') => //.
     + smt(get_setE).
     by rewrite get_set_sameE.
-  move => neqbj' sma' dmc3' smbj' c_in_stb obs_skmn neq.
+  move => neqbj' sma' dmc3' smbj' c_in_stb obs_skmn.
   apply (Game8_accepted_r _ _ _ _ _ b'' j' stb' c1' c2' c3') => //.
   + by rewrite get_set_neqE.
   + smt(get_setE).  
-  case (inv2 c3); smt(get_setE).
+  by case (inv2 c3); smt(get_setE).
 move => r id1 id2 c1' c2' c3' k smb' dmc3' skm_k ids_eq.
 apply (Game8_observed _ _ _ _ _ r id1 id2 c1' c2' c3' k) => //.
 + by rewrite get_set_neqE.
@@ -1331,10 +1325,8 @@ smt(get_setE).
 
 smt(get_setE).
 
-case: (role{m} = Responder) => [->> | /#].
-have smai : Game8.state_map.[a, i]{m} = Some (Responder, Accepted trace{m} k'{m}) by smt().
 case (inv1 a{m} i{m}); rewrite smai //=.
-move => /> b j stbj c1 c2 c3 !->> dmc3 smbj c1_in_stbj c2_in_stbj c3_in_stbj obs_skm neq. 
+move => /> b j stbj c1 c2 c3 !->> dmc3 smbj trace_stbj obs_skm.
 do! split.
 
 (* State Map invariant *)
@@ -1370,7 +1362,7 @@ case (inv1 a' i').
     apply (Game8_accepted_i _ _ _ _ _ a{m} i{m} (Observed ((b, c1), c2, c3) sk) c1' c2' c3') => //.
     + by rewrite get_set_neqE.
     + by rewrite get_set_sameE.
-  move => neq' smai' dmc3' smbj' c_in_stb' c3'_tr obs_sk bj_neq_ai'.
+  move => neq' smai' dmc3' smbj' c_in_stb' c3'_tr obs_sk.
   apply (Game8_accepted_i _ _ _ _ _ b' j' stb' c1' c2' c3') => //.
   + by rewrite get_set_neqE.
   + smt(get_setE).
@@ -1383,7 +1375,7 @@ case (inv1 a' i').
   case (inv2 c3); 1..3: smt(). 
   case (inv2 c2); 1,2,4: smt(). 
   smt().  
-+ move => b' j' stb c1' c2' c3' sma' dmc3' smbj' c_in_stb obs_sk neqbj.
++ move => b' j' stb c1' c2' c3' sma' dmc3' smbj' c_in_stb obs_sk.
   apply (Game8_accepted_r _ _ _ _ _ b' j' stb c1' c2' c3') => //.
   + by rewrite get_set_neqE.
   + smt(get_setE).  
@@ -1486,10 +1478,9 @@ seq 1 : #pre; 1: by auto => />.
 
 auto => /> &m skm st inv1 inv2 inv3 inv4 aiin card_ps card_obs_ps. 
 
-case: (role{m} = Initiator) => [->> | neqInit].
-have smai : Game8.state_map.[a, i]{m} = Some (Initiator, Accepted trace{m} k'{m}) by smt().
+case: (role{m}) aiin st card_ps=> /> /domE; case _: (Game8.state_map.[a, i]{m})=> /> smai card_ps.
 case (inv1 a{m} i{m}); rewrite smai //=.
-move => /> b j stb c1 c2 c3 !->> dmc3 nskm smbj c1_in_stb c2_in_stb c3_in_stb neqbj.
+move => /> b j stb c1 c2 c3 !->> dmc3 smbj c1_in_stb c2_in_stb c3_in_stb nskm.
 do! split.
 
 (* State Map invariant *)
@@ -1518,28 +1509,27 @@ case (inv1 a' i').
 + move => b' c1' c2' sma' dmc2.
   apply (Game8_rpending _ _ _ _ _ b' c1' c2') => //.
   by rewrite get_set_neqE.
-+ move => b' j' stb' c1' c2' c3' sma' dmc3' smbj' c_in_stb' c3'_tr obs_sk neqbj'.
++ move => b' j' stb' c1' c2' c3' sma' dmc3' smbj' c_in_stb' c3'_tr obs_sk.
   apply (Game8_accepted_i _ _ _ _ _ b' j' stb' c1' c2' c3') => //.
   + by rewrite get_set_neqE.
   + smt(get_setE).
-  + case (inv2 c3); smt(get_setE).
+  + by case (inv2 c3'); smt(get_setE).
 + move => b'' j' stb' c1' c2' c3'.
   case ((b'', j') = (a, i){m}).
   + move => />.
     rewrite smai => /> smai' dmc3'.
-    case (inv2 c3); 1..3: smt(get_setE).
-    case (c3 = c3');2: smt(get_setE).
+    case (inv2 c3'); 1..3: smt(get_setE).
     move => />.
     have /> := inv3 _ _ _ _ _ dmc3 dmc3'.
     move => *.
     apply (Game8_accepted_r _ _ _ _ _ a{m} i{m} (Observed ((a{m}, c1'), c2', c3') k{m}) c1' c2' c3') => //.
     + smt(get_setE).
     by rewrite get_set_sameE.
-  move => neqbj' sma' dmc3' smbj' c_in_stb obs_skmn neq.
+  move => neqbj' sma' dmc3' smbj' c_in_stb obs_skmn.
   apply (Game8_accepted_r _ _ _ _ _ b'' j' stb' c1' c2' c3') => //.
   + by rewrite get_set_neqE.
   + smt(get_setE).  
-  case (inv2 c3); smt(get_setE).
+  by case (inv2 c3'); smt(get_setE).
 move => r id1 id2 c1' c2' c3' k smb' dmc3' skm_k ids_eq.
 apply (Game8_observed _ _ _ _ _ r id1 id2 c1' c2' c3' k) => //.
 + by rewrite get_set_neqE.
@@ -1587,10 +1577,8 @@ smt(get_setE).
 
 smt(get_setE).
 
-case: (role{m} = Responder) => [->> | /#].
-have smai : Game8.state_map.[a, i]{m} = Some (Responder, Accepted trace{m} k'{m}) by smt().
 case (inv1 a{m} i{m}); rewrite smai //=.
-move => /> b j stbj c1 c2 c3 !->> dmc3 smbj c1_in_stbj c2_in_stbj c3_in_stbj obs_skm neq. 
+move => /> b j stbj c1 c2 c3 !->> dmc3 smbj trace_stbj obs_skm. 
 do! split.
 
 (* State Map invariant *)
@@ -1626,7 +1614,7 @@ case (inv1 a' i').
     apply (Game8_accepted_i _ _ _ _ _ a{m} i{m} (Observed ((b, c1), c2, c3) k{m}) c1' c2' c3') => //.
     + by rewrite get_set_neqE.
     + by rewrite get_set_sameE.
-  move => neq' smai' dmc3' smbj' c_in_stb' c3'_tr obs_sk bj_neq_ai'.
+  move => neq' smai' dmc3' smbj' c_in_stb' c3'_tr obs_sk.
   apply (Game8_accepted_i _ _ _ _ _ b' j' stb' c1' c2' c3') => //.
   + by rewrite get_set_neqE.
   + smt(get_setE).
@@ -1639,7 +1627,7 @@ case (inv1 a' i').
   case (inv2 c3); 1..3: smt(). 
   case (inv2 c2); 1,2,4: smt(). 
   smt().  
-+ move => b' j' stb c1' c2' c3' sma' dmc3' smbj' c_in_stb obs_sk neqbj.
++ move => b' j' stb c1' c2' c3' sma' dmc3' smbj' c_in_stb obs_sk.
   apply (Game8_accepted_r _ _ _ _ _ b' j' stb c1' c2' c3') => //.
   + by rewrite get_set_neqE.
   + smt(get_setE).  
