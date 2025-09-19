@@ -12,6 +12,11 @@ type role = [
 ].
 
 type trace = (id * msg) * msg * msg.
+type abort_state = [
+| R1
+| I of msg
+| R2 of msg & msg
+].
 
 (* Represents an instance state in the protocol *)
 type instance_state = [
@@ -19,7 +24,7 @@ type instance_state = [
 | RPending of rstate & (id * msg) & msg
 | Accepted of trace & key
 | Observed of trace & key
-| Aborted
+| Aborted  of abort_state
 ].
 
 (* Return the trace from an accepted state *)
@@ -28,7 +33,7 @@ with s = Accepted t _   => Some t
 with s = Observed t _   => Some t
 with s = IPending _ _   => None
 with s = RPending _ _ _ => None
-with s = Aborted        => None.
+with s = Aborted  _     => None.
 
 (* Decide if an instance has been revelaed *)
 op is_observed s : bool =
@@ -36,7 +41,7 @@ with s = Observed _ _   => true
 with s = Accepted _ _   => false
 with s = IPending _ _   => false
 with s = RPending _ _ _ => false
-with s = Aborted        => false.
+with s = Aborted _      => false.
 
 (* Get all trace-sharing instances *)
 op get_ts_instances t (fmap : ('a, 'b * _) fmap) =
@@ -93,14 +98,17 @@ module type GWAKE_out = {
 module type GWAKE_out_i = {
   include GWAKE_out 
 
-  proc init_mem() : unit
+  proc init_mem(b: bool) : unit
 }.
 
 module GWAKEb (P : AKE_Scheme) = {
+  var b0 : bool
+
   var state_map: (id * int, role * instance_state) fmap
   var psk_map: (id * id, pskey) fmap
 
-  proc init_mem() : unit = {
+  proc init_mem(b: bool) : unit = {
+    b0 <- b;
     state_map <- empty;
     psk_map <- empty;
   }
@@ -137,7 +145,7 @@ module GWAKEb (P : AKE_Scheme) = {
       psk <- oget psk_map.[(a, b)];
       resp <@ P.msg2(b, m1, psk);
       match resp with
-      | None => state_map.[(b, j)] <- (Responder, Aborted);
+      | None => state_map.[(b, j)] <- (Responder, Aborted R1);
       | Some val => {
         (m2, s) <- val;
         state_map.[(b, j)] <- (Responder, RPending s m1 m2);
@@ -157,7 +165,7 @@ module GWAKEb (P : AKE_Scheme) = {
       if (st is IPending s m1) {
         resp <@ P.msg3(a, s, m2);
         match resp with
-        | None => state_map.[(a, i)] <- (Initiator, Aborted);
+        | None => state_map.[(a, i)] <- (Initiator, Aborted (I m1.`2));
         | Some val => {
           (m3, key) <- val;
           state_map.[(a, i)] <- (Initiator, Accepted (m1, m2, m3) key);
@@ -178,7 +186,7 @@ module GWAKEb (P : AKE_Scheme) = {
       if (st is RPending s m1 m2) {
         resp <@ P.fin(b, s, m3);
         match resp with
-        | None => state_map.[(b, j)] <- (Responder, Aborted);
+        | None => state_map.[(b, j)] <- (Responder, Aborted (R2 m1.`2 m2));
         | Some key => {
           state_map.[(b, j)] <- (Responder, Accepted (m1, m2, m3) key);
           r <- Some ();
@@ -212,21 +220,11 @@ module GWAKEb (P : AKE_Scheme) = {
       | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | Aborted        => { }
+      | Aborted  _     => { }
       end;
     }
     return ko;
   }
-}.
-
-module GWAKE0 (P : AKE_Scheme) : GWAKE_out_i = {
-  include var GWAKEb(P)
-
-  proc test = GWAKEb(P).rev_skey
-}.
-
-module GWAKE1 (P : AKE_Scheme) : GWAKE_out_i = {
-  include var GWAKEb(P)
 
   proc test(a: id, i: int) : key option = {
     var role, st, ps, k;
@@ -242,7 +240,11 @@ module GWAKE1 (P : AKE_Scheme) : GWAKE_out_i = {
           ps <- get_observed_partners (a, i) state_map;
           (* If we have no observed partners then, we can test *)
           if (card ps = 0) {
-            k <$ dkey;
+            if (b0 = false) {
+              k <- k';
+            } else {
+              k <$ dkey;
+            }
             ko <- Some k;
             state_map.[(a, i)] <- (role, Observed trace k);
           }
@@ -251,7 +253,7 @@ module GWAKE1 (P : AKE_Scheme) : GWAKE_out_i = {
       | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | Aborted        => { }
+      | Aborted  _     => { }
       end;
     }
     return ko;
@@ -267,13 +269,13 @@ module type A_GWAKE (GW : GWAKE_out) = {
 }.
 
 module E_GWAKE (O : GWAKE_out_i) (A : A_GWAKE) = {
-  proc run() : bool = {
-    var b : bool;
+  proc run(b: bool) : bool = {
+    var b' : bool;
 
-    O.init_mem();
+    O.init_mem(b);
     
-    b <@ A(O).run();
+    b' <@ A(O).run();
     
-    return b;
+    return b';
   }
 }.

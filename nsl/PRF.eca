@@ -1,6 +1,6 @@
 require import FMap.
 
-type handle, key, D, R.
+type handle, key, D, R, d_in_t.
 
 op dkey : key distr.
 op dR : D -> R distr.
@@ -73,16 +73,16 @@ module PRF1 : GPRF_out_i = {
 (********************************************************************************)
 (* Adversary and Experiment *)
 module type A_GPRF (GA : GPRF_out) = {
-  proc run() : bool
+  proc run(_: d_in_t) : bool
 }.
 
 module E_GPRF (O : GPRF_out_i) (A : A_GPRF) = {
-  proc run() : bool = {
+  proc run(x) : bool = {
     var b : bool;
 
     O.init_mem();
     
-    b <@ A(O).run();
+    b <@ A(O).run(x);
     
     return b;
   }

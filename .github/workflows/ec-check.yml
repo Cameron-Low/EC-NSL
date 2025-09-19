@@ -14,7 +14,7 @@ env:
 jobs:
   ec:
     name: Easycrypt Proof Checking
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     container:
       image: ghcr.io/easycrypt/ec-build-box
     strategy:
@@ -25,7 +25,7 @@ jobs:
       name: Checkout EasyCrypt
       with:
         repository: EasyCrypt/easycrypt
-        ref: refs/heads/fine-grained-module-defs
+        ref: refs/tags/r2025.08
         path: easycrypt
     - name: Update OPAM & EasyCrypt dependencies
       run: |
