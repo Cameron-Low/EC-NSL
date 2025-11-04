@@ -1,5 +1,5 @@
 require import AllCore Distr FSet FMap.
-require GWAKE Aead PRF.
+require GAKE Aead PRF.
 
 type id, pskey, skey, nonce, ctxt.
 type ids = id * id.
@@ -31,7 +31,7 @@ type rstate = id * pskey * nonce * nonce * ctxt * ctxt.
 
 axiom correctness k ad p c: k \in dpskey => c \in enc k ad p => dec k ad c = Some p.
 
-clone import GWAKE as GWAKEc with
+clone import GAKE as GAKEc with
   type id <- id,
   type msg <- ctxt,
   type key <- skey,

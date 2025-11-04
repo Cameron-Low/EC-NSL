@@ -80,7 +80,7 @@ module type AKE_Scheme = {
 (********************************************************************************)
 (* WAKE package and games *)
 
-module type GWAKE_out = {
+module type GAKE_out = {
   (* Public key generation *)
   proc gen_pskey(a: id, b: id) : unit
 
@@ -95,13 +95,13 @@ module type GWAKE_out = {
   proc test(a: id, i: int) : key option
 }.
 
-module type GWAKE_out_i = {
-  include GWAKE_out 
+module type GAKE_out_i = {
+  include GAKE_out 
 
   proc init_mem(b: bool) : unit
 }.
 
-module GWAKEb (P : AKE_Scheme) = {
+module GAKEb (P : AKE_Scheme) = {
   var b0 : bool
 
   var state_map: (id * int, role * instance_state) fmap
@@ -205,17 +205,14 @@ module GWAKEb (P : AKE_Scheme) = {
       (role, st) <- oget state_map.[(a, i)];
       match st with
       | Accepted trace k' => {
-        (* Get partners *)
-        ps <- get_partners (a, i) (Some trace) role state_map;
-        if (card ps <= 1) {
-          ps <- get_observed_partners (a, i) state_map;
-          (* If we have no observed partners then, we can test *)
-          if (card ps = 0) {
-            k <- k';
-            ko <- Some k;
-            state_map.[(a, i)] <- (role, Observed trace k);
-          }
+        ps <- get_observed_partners (a, i) state_map;
+        (* If we have no observed partners then, we can test *)
+        if (card ps = 0) {
+          k <- k';
+          ko <- Some k;
+          state_map.[(a, i)] <- (role, Observed trace k);
         }
+        
       }
       | Observed _ _   => { }
       | IPending _ _   => { }
@@ -234,20 +231,16 @@ module GWAKEb (P : AKE_Scheme) = {
       (role, st) <- oget state_map.[(a, i)];
       match st with
       | Accepted trace k' => {
-        (* Get partners *)
-        ps <- get_partners (a, i) (Some trace) role state_map;
-        if (card ps <= 1) {
-          ps <- get_observed_partners (a, i) state_map;
-          (* If we have no observed partners then, we can test *)
-          if (card ps = 0) {
-            if (b0 = false) {
-              k <- k';
-            } else {
-              k <$ dkey;
-            }
-            ko <- Some k;
-            state_map.[(a, i)] <- (role, Observed trace k);
+        ps <- get_observed_partners (a, i) state_map;
+        (* If we have no observed partners then, we can test *)
+        if (card ps = 0) {
+          if (b0 = false) {
+            k <- k';
+          } else {
+            k <$ dkey;
           }
+          ko <- Some k;
+          state_map.[(a, i)] <- (role, Observed trace k);
         }
       }
       | Observed _ _   => { }
@@ -264,11 +257,11 @@ module GWAKEb (P : AKE_Scheme) = {
 (********************************************************************************)
 (* Adversary and Experiment *)
 
-module type A_GWAKE (GW : GWAKE_out) = {
+module type A_GAKE (GW : GAKE_out) = {
   proc run() : bool
 }.
 
-module E_GWAKE (O : GWAKE_out_i) (A : A_GWAKE) = {
+module E_GAKE (O : GAKE_out_i) (A : A_GAKE) = {
   proc run(b: bool) : bool = {
     var b' : bool;
 

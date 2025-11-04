@@ -1,19 +1,14 @@
 require import AllCore FSet FMap List Distr DProd PROM NSL Games.
-import GWAKEc AEADc PRFc.
+import GAKEc AEADc PRFc.
 require Birthday.
 
-lemma negb_exists2 (P : 'a -> 'b -> bool) : ! (exists x y, P x y) <=> (forall x y, ! P x y).
-proof.
-smt().
-qed.
- 
 (* ------------------------------------------------------------------------------------------ *)
 (* Reductions *)
 (* ------------------------------------------------------------------------------------------ *)
 
 (* AEAD Reduction *)
-module (Red_AEAD (D : A_GWAKE) : A_GAEAD) (O : GAEAD_out) = {
-  module WAKE_O : GWAKE_out = Game1 with {
+module (Red_AEAD (D : A_GAKE) : A_GAEAD) (O : GAEAD_out) = {
+  module WAKE_O : GAKE_out = Game1 with {
     - var psk_map
     proc init_mem [ -1 - ]
     proc gen_pskey [ ^if ~ { O.gen(a, b); } ]
@@ -64,8 +59,8 @@ clone PROM.FullRO as NROc with
   type d_out_t <= bool
 proof *.
 
-module (Red_ROM (D : A_GWAKE) : NROc.RO_Distinguisher) (O : NROc.RO) = {
-  module WAKE_O : GWAKE_out = Game4 with {
+module (Red_ROM (D : A_GAKE) : NROc.RO_Distinguisher) (O : NROc.RO) = {
+  module WAKE_O : GAKE_out = Game4 with {
     proc send_msg1 [
       ^if.^if.^na<$ ~ {na <- witness; O.sample((msg1_data a b, ca)); }
     ]
@@ -105,8 +100,8 @@ module (Red_ROM (D : A_GWAKE) : NROc.RO_Distinguisher) (O : NROc.RO) = {
 (* ------------------------------------------------------------------------------------------ *)
 (* PRF Reduction *)
 
-module (Red_PRF (D : A_GWAKE) : A_GPRF) (O : GPRF_out) = {
-  module WAKE_O : GWAKE_out = Game5 with {
+module (Red_PRF (D : A_GAKE) : A_GPRF) (O : GPRF_out) = {
+  module WAKE_O : GAKE_out = Game5 with {
     - var prfkey_map
     proc init_mem [-1 -]
     proc send_msg3 [
@@ -148,7 +143,7 @@ clone Birthday as BD with
   proof*.
 realize ge0_q by smt(ge0_q_m1 ge0_q_m2 ge0_q_m3).
 
-module Counter (W : GWAKE_out) : GWAKE_out_i = {
+module Counter (W : GAKE_out) : GAKE_out_i = {
   var cm1, cm2, cm3 : int
 
   include W[send_fin, gen_pskey, test, rev_skey]
@@ -191,7 +186,7 @@ module Red_Coll_O_WAKE (S : BD.ASampler) = Game2 with {
   ]
 }.
 
-module (Red_Coll_real (A : A_GWAKE) : BD.Adv) (S : BD.ASampler) = {
+module (Red_Coll_real (A : A_GAKE) : BD.Adv) (S : BD.ASampler) = {
   proc a() = {
     var b;
     Red_Coll_O_WAKE(S).init_mem(false);
@@ -200,7 +195,7 @@ module (Red_Coll_real (A : A_GWAKE) : BD.Adv) (S : BD.ASampler) = {
   }
 }.
 
-module (Red_Coll_ideal (A : A_GWAKE) : BD.Adv) (S : BD.ASampler) = {
+module (Red_Coll_ideal (A : A_GAKE) : BD.Adv) (S : BD.ASampler) = {
   proc a() = {
     var b;
     Red_Coll_O_WAKE(S).init_mem(true);
@@ -220,8 +215,8 @@ clone PROM.FullRO as KROc with
   type d_out_t <= bool
 proof *.
 
-module (Red_ROM_sk (D : A_GWAKE) : KROc.RO_Distinguisher) (R : KROc.RO) = {
-  module WAKE_O : GWAKE_out = Game8 with {
+module (Red_ROM_sk (D : A_GAKE) : KROc.RO_Distinguisher) (R : KROc.RO) = {
+  module WAKE_O : GAKE_out = Game8 with {
     - var sk_map
     
     proc init_mem [
@@ -235,11 +230,11 @@ module (Red_ROM_sk (D : A_GWAKE) : KROc.RO_Distinguisher) (R : KROc.RO) = {
     ]
 
     proc rev_skey [
-      [^if.^match#Accepted.^if.^if.^k''<$ - ^k<-] ~ { k <@ R.get(trace); }
+      [^if.^match#Accepted.^if.^k''<$ - ^k<-] ~ { k <@ R.get(trace); }
     ]
 
     proc test [
-      [^if.^match#Accepted.^if.^if.^k''<$ - ^if{2}] ~ { k <@ R.get(trace); if (b0) k <$ dskey; }
+      [^if.^match#Accepted.^if.^k''<$ - ^if{2}] ~ { k <@ R.get(trace); if (b0) k <$ dskey; }
     ]
   }
 
@@ -256,10 +251,10 @@ module (Red_ROM_sk (D : A_GWAKE) : KROc.RO_Distinguisher) (R : KROc.RO) = {
 (* ------------------------------------------------------------------------------------------ *)
 section.
 
-declare module A <: A_GWAKE {-GWAKEb, -Game1, -Game2, -Game3, -Game4, -Game5, -Game6, -Game7, -Game8, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD, -Red_Coll_real, -Red_Coll_ideal, -Red_ROM, -Red_PRF, -NROc.RO, -NROc.FRO, -BD.Sample, -KROc.RO, -KROc.FRO, -Red_ROM_sk}.
+declare module A <: A_GAKE {-GAKEb, -Game1, -Game2, -Game3, -Game4, -Game5, -Game6, -Game7, -Game8, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD, -Red_Coll_real, -Red_Coll_ideal, -Red_ROM, -Red_PRF, -NROc.RO, -NROc.FRO, -BD.Sample, -KROc.RO, -KROc.FRO, -Red_ROM_sk}.
 
 declare axiom A_ll:
-forall (GW <: GWAKE_out{-A}),
+forall (GW <: GAKE_out{-A}),
   islossless GW.gen_pskey =>
   islossless GW.send_msg1 =>
   islossless GW.send_msg2 =>
@@ -267,12 +262,12 @@ forall (GW <: GWAKE_out{-A}),
   islossless GW.send_fin =>
   islossless GW.rev_skey => islossless GW.test => islossless A(GW).run.
 
-declare axiom A_bounded_qs: forall (GW <: GWAKE_out{-A}), hoare[A(Counter(GW)).run: Counter.cm1 = 0 /\ Counter.cm2 = 0 /\ Counter.cm3 = 0 ==> Counter.cm1 <= q_m1 /\ Counter.cm2 <= q_m2 /\ Counter.cm3 <= q_m3].
+declare axiom A_bounded_qs: forall (GW <: GAKE_out{-A}), hoare[A(Counter(GW)).run: Counter.cm1 = 0 /\ Counter.cm2 = 0 /\ Counter.cm3 = 0 ==> Counter.cm1 <= q_m1 /\ Counter.cm2 <= q_m2 /\ Counter.cm3 <= q_m3].
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 8: Replace sampling derived from the sk_map to a fresh sample in test *)
 lemma Step8 &m:
-    Pr[E_GWAKE(Game8, A).run(false) @ &m : res] = Pr[E_GWAKE(Game8, A).run(true) @ &m : res].
+    Pr[E_GAKE(Game8, A).run(false) @ &m : res] = Pr[E_GAKE(Game8, A).run(true) @ &m : res].
 proof.
 byequiv => //.
 proc; inline.
@@ -322,52 +317,49 @@ call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
   + smt().
   move=> tr k'.
   sp ^if & -1 ^if & -1; if => //.
-  + smt().
-  sp ^if & -1 ^if & -1; if => //.
   seq 1 1 : (={k''} /\ #pre); 1: by auto => />.
   if{1}.
   + rcondt {2} ^if; 1: by auto => /#.
     auto => />.
     smt(get_setE).
   exfalso.
-  clear &m.
-  move => &m &2 [#] _ [psr] [#] _ [psl] [#] <<*>.
-  move => _ osmai _ _ _ _ _ [] [!#] inv1 inv2 inv3 inv4 ? cardps card_obs_ps in_sk.
-  have smai : Game8.state_map.[a, i]{m} = Some (role{m}, Accepted tr k') by smt().
-  case (inv1 a{m} i{m}); rewrite smai //.  
+  move => &1 &2 [#] />.
+  move => osmai _ _ _ inv1 inv2 inv3 inv4 inv5 ? card_obs_ps.
+  have smai : Game8.state_map.[a, i]{2} = Some (role{2}, Accepted tr k') by smt().
+  case (inv2 a{2} i{2}); rewrite smai //.  
   + move => />.
     move => b j stb c1 c2 c3 !->> dmc3 smbj.
-    case (inv1 b j); rewrite smbj //.
+    case (inv2 b j); rewrite smbj //.
     move => />.
     move => id1 id2 c1' c2' c3' k'.
     move => ->>.
-    case (inv2 c3'); 1..3: smt().
+    case (inv3 c3'); 1..3: smt().
     case (c1' = c1); 2: smt().
     case (c2' = c2); 2: smt().
     case (c3' = c3); 2: smt().
-    case (id1 = a{m}); 2: smt().
+    case (id1 = a{2}); 2: smt().
     move => />.
-    have bj_partner : (b, j) \in get_partners (a, i){m} (Some ((a{m}, c1), c2, c3)) Initiator Game8.state_map{m}.
+    have bj_partner : (b, j) \in get_partners (a, i){2} (Some ((a{2}, c1), c2, c3)) Initiator Game8.state_map{2}.
     + rewrite /get_partners mem_fdom mem_filter /#.
-    have // : (b, j) \in get_observed_partners (a, i){m} Game8.state_map{m}.
+    have // : (b, j) \in get_observed_partners (a, i){2} Game8.state_map{2}.
     + rewrite /get_observed_partners in_filter /#.
     rewrite fcard_eq0 in card_obs_ps.
     by rewrite card_obs_ps in_fset0.
   move => />.
   move => b j stb c1 c2 c3 !->> dmc3 smbj.
-  case (inv1 b j); rewrite smbj //.
+  case (inv2 b j); rewrite smbj //.
   move => />.
   move => id1 id2 c1' c2' c3' k'.
   move => ->>.
-  case (inv2 c3'); 1..3: smt().
+  case (inv3 c3'); 1..3: smt().
   case (c1' = c1); 2: smt().
   case (c2' = c2); 2: smt().
   case (c3' = c3); 2: smt().
   case (id1 = b); 2: smt().
   move => />.
-  have bj_partner : (b, j) \in get_partners (a, i){m} (Some ((b, c1), c2, c3)) Responder Game8.state_map{m}.
+  have bj_partner : (b, j) \in get_partners (a, i){2} (Some ((b, c1), c2, c3)) Responder Game8.state_map{2}.
   + rewrite /get_partners mem_fdom mem_filter /#.
-  have // : (b, j) \in get_observed_partners (a, i){m} Game8.state_map{m}.
+  have // : (b, j) \in get_observed_partners (a, i){2} Game8.state_map{2}.
   + rewrite /get_observed_partners in_filter /#.
   rewrite fcard_eq0 in card_obs_ps.
   by rewrite card_obs_ps in_fset0.
@@ -383,8 +375,6 @@ call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
   + smt().
   move=> tr k'.
   sp ^if & -1 ^if & -1; if => //.
-  + smt().
-  sp ^if & -1 ^if & -1; if => //.
   rcondt {1} ^if{2}; 1: by auto => /#.
   rcondf {2} ^if{2}; 1: by auto => /#.
   case (tr \notin Game8.sk_map{1}).
@@ -393,44 +383,43 @@ call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
     auto => />.
     smt(get_setE).
   exfalso.
-  clear &m.
-  move => &m &2 [] [#] [psr] [#] _ [psl] [#] <<*>.
-  move => _ osmai _ _ _ _ _ [] [!#] inv1 inv2 inv3 inv4 ? cardps card_obs_ps in_sk.
-  have smai : Game8.state_map.[a, i]{m} = Some (role{m}, Accepted tr k') by smt().
-  case (inv1 a{m} i{m}); rewrite smai //.  
+  move => &1 &2 [#] />.
+  move => osmai _ _ _ inv1 inv2 inv3 inv4 inv5 ? card_obs_ps.
+  have smai : Game8.state_map.[a, i]{2} = Some (role{2}, Accepted tr k') by smt().
+  case (inv2 a{2} i{2}); rewrite smai //.  
   + move => />.
     move => b j stb c1 c2 c3 !->> dmc3 smbj.
-    case (inv1 b j); rewrite smbj //.
+    case (inv2 b j); rewrite smbj //.
     move => />.
     move => id1 id2 c1' c2' c3' k'.
     move => ->>.
-    case (inv2 c3'); 1..3: smt().
+    case (inv3 c3'); 1..3: smt().
     case (c1' = c1); 2: smt().
     case (c2' = c2); 2: smt().
     case (c3' = c3); 2: smt().
-    case (id1 = a{m}); 2: smt().
+    case (id1 = a{2}); 2: smt().
     move => />.
-    have bj_partner : (b, j) \in get_partners (a, i){m} (Some ((a{m}, c1), c2, c3)) Initiator Game8.state_map{m}.
+    have bj_partner : (b, j) \in get_partners (a, i){2} (Some ((a{2}, c1), c2, c3)) Initiator Game8.state_map{2}.
     + rewrite /get_partners mem_fdom mem_filter /#.
-    have // : (b, j) \in get_observed_partners (a, i){m} Game8.state_map{m}.
+    have // : (b, j) \in get_observed_partners (a, i){2} Game8.state_map{2}.
     + rewrite /get_observed_partners in_filter /#.
     rewrite fcard_eq0 in card_obs_ps.
     by rewrite card_obs_ps in_fset0.
   move => />.
   move => b j stb c1 c2 c3 !->> dmc3 smbj.
-  case (inv1 b j); rewrite smbj //.
+  case (inv2 b j); rewrite smbj //.
   move => />.
   move => id1 id2 c1' c2' c3' k'.
   move => ->>.
-  case (inv2 c3'); 1..3: smt().
+  case (inv3 c3'); 1..3: smt().
   case (c1' = c1); 2: smt().
   case (c2' = c2); 2: smt().
   case (c3' = c3); 2: smt().
   case (id1 = b); 2: smt().
   move => />.
-  have bj_partner : (b, j) \in get_partners (a, i){m} (Some ((b, c1), c2, c3)) Responder Game8.state_map{m}.
+  have bj_partner : (b, j) \in get_partners (a, i){2} (Some ((b, c1), c2, c3)) Responder Game8.state_map{2}.
   + rewrite /get_partners mem_fdom mem_filter /#.
-  have // : (b, j) \in get_observed_partners (a, i){m} Game8.state_map{m}.
+  have // : (b, j) \in get_observed_partners (a, i){2} Game8.state_map{2}.
   + rewrite /get_observed_partners in_filter /#.
   rewrite fcard_eq0 in card_obs_ps.
   by rewrite card_obs_ps in_fset0.
@@ -499,26 +488,26 @@ by move=> [r' []] // [].
 qed.
 
 lemma Step0 bit &m:
-    Pr[E_GWAKE(GWAKEb(NSL), A).run(bit) @ &m : res] = Pr[E_GWAKE(Game1, A).run(bit) @ &m : res].
+    Pr[E_GAKE(GAKEb(NSL), A).run(bit) @ &m : res] = Pr[E_GAKE(Game1, A).run(bit) @ &m : res].
 proof.
 byequiv => //.
 proc; inline*.
 call (:
-    ={b0, psk_map}(GWAKEb, Game1)
-/\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
-/\ (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i){1}
+    ={b0, psk_map}(GAKEb, Game1)
+/\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
+/\ (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i){1}
 ).
 - conseq (: ={res}
-          /\ ={b0, psk_map}(GWAKEb, Game1)
-          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
-  ) GWAKEb_inv_gen_pskey _ => //.
+          /\ ={b0, psk_map}(GAKEb, Game1)
+          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
+  ) GAKEb_inv_gen_pskey _ => //.
   proc.
   by if; auto.
 
 - conseq (: ={res}
-          /\ ={b0, psk_map}(GWAKEb, Game1)
-          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
-  ) GWAKEb_inv_send_msg1 _ => //.
+          /\ ={b0, psk_map}(GAKEb, Game1)
+          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
+  ) GAKEb_inv_send_msg1 _ => //.
   proc; inline.
   sp; wp; if=> //.
   + smt().
@@ -526,9 +515,9 @@ call (:
   smt(get_setE).
 
 - conseq (: ={res}
-          /\ ={b0, psk_map}(GWAKEb, Game1)
-          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
-  ) GWAKEb_inv_send_msg2 _ => //.
+          /\ ={b0, psk_map}(GAKEb, Game1)
+          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
+  ) GAKEb_inv_send_msg2 _ => //.
   proc; inline.
   sp; wp; if=> //.
   + smt().
@@ -540,16 +529,16 @@ call (:
   by match Some {1} ^match; auto; smt(get_setE).
 
 - conseq (: ={res}
-          /\ ={b0, psk_map}(GWAKEb, Game1)
-          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
-  ) GWAKEb_inv_send_msg3 _ => //.
+          /\ ={b0, psk_map}(GAKEb, Game1)
+          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
+  ) GAKEb_inv_send_msg3 _ => //.
   proc; inline.
   sp; wp; if=> //.
   + smt().
   sp; match; 1..5: (
     move=> &1 &2 /> + + /(_ (a, i){2});
     rewrite domE;
-    case: (GWAKEb.state_map{1}.[(a, i)]{2})=> />;
+    case: (GAKEb.state_map{1}.[(a, i)]{2})=> />;
     move=> + H;
     by rewrite -H => /#
   ); 2..5: by auto.
@@ -571,16 +560,16 @@ call (:
   smt(get_setE).
 
 - conseq (: ={res}
-          /\ ={b0, psk_map}(GWAKEb, Game1)
-          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
-  ) GWAKEb_inv_send_fin _ => //.
+          /\ ={b0, psk_map}(GAKEb, Game1)
+          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
+  ) GAKEb_inv_send_fin _ => //.
   proc; inline.
   sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5: (
     move=> &1 &2 /> + + /(_ (b, j){2});
     rewrite domE;
-    case: (GWAKEb.state_map{1}.[(b, j)]{2})=> />;
+    case: (GAKEb.state_map{1}.[(b, j)]{2})=> />;
     move=> + H;
     by rewrite -H /#
   ); 1,3,4,5: by auto.
@@ -602,25 +591,23 @@ call (:
   smt(get_setE).
 
 - conseq (: ={res}
-          /\ ={b0, psk_map}(GWAKEb, Game1)
-          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
-  ) GWAKEb_inv_rev_skey _ => //.
+          /\ ={b0, psk_map}(GAKEb, Game1)
+          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
+  ) GAKEb_inv_rev_skey _ => //.
   proc; inline. 
   sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5:(
     move=> &1 &2 /> + + /(_ (a, i){2});
     rewrite domE;
-    case: (GWAKEb.state_map{1}.[(a, i)]{2})=> />;
+    case: (GAKEb.state_map{1}.[(a, i)]{2})=> />;
     move=> + H;
     by rewrite -H => /#
   ); 1,2,4,5: by auto.
   move=> tr k tr' k'.
   sp ^if & -1 ^if & -1; if=> //.
-  + smt(eq_partners).
-  sp ^if & -1 ^if & -1; if=> //.
   + move => &1 &2 [] /> *.
-    by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Game1.state_map{2}) => //.
+    by rewrite (eq_obs_partners (a, i){2} GAKEb.state_map{1} Game1.state_map{2}) => //.
   auto=> /> &1 &2 + + eqsm invl a_in _.
   rewrite -(eqsm (a, i){2}).
   move => *.
@@ -631,25 +618,23 @@ call (:
   do rewrite get_set_neqE => //. rewrite eqsm => //.
 
 - conseq (: ={res}
-          /\ ={b0, psk_map}(GWAKEb, Game1)
-          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GWAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
-     ) GWAKEb_inv_test _ => //.
+          /\ ={b0, psk_map}(GAKEb, Game1)
+          /\ (forall h, omap (fun v => let (r, s) = v in (r, clear_psk s)) GAKEb.state_map.[h]{1} = Game1.state_map.[h]{2})
+     ) GAKEb_inv_test _ => //.
   proc; inline. 
   sp; wp ^if ^if; if=> //.
   + smt().
   sp; match; 1..5:(
     move=> &1 &2 /> + + /(_ (a, i){2});
     rewrite domE;
-    case: (GWAKEb.state_map{1}.[(a, i)]{2})=> />;
+    case: (GAKEb.state_map{1}.[(a, i)]{2})=> />;
     move=> + H;
     by rewrite -H => /#
   ); 1,2,4,5: by auto.
   move=> tr k tr' k'.
   sp ^if & -1 ^if & -1; if=> //.
-  + smt(eq_partners).
-  sp ^if & -1 ^if & -1; if=> //.
   + move => &1 &2 [] /> *.
-    by rewrite (eq_obs_partners (a, i){2} GWAKEb.state_map{1} Game1.state_map{2}) => //.
+    by rewrite (eq_obs_partners (a, i){2} GAKEb.state_map{1} Game1.state_map{2}) => //.
   if => //.  
   + auto=> /> &1 &2 + + eqsm invl a_in _.
     rewrite -(eqsm (a, i){2}).
@@ -659,7 +644,7 @@ call (:
     case (h = (a, i){2}) => [|hneq].
     + smt(get_set_sameE). 
     do rewrite get_set_neqE => //. rewrite eqsm => //.
-  auto=> /> &1 &2 + + eqsm invl a_in _ _ ideal sk _.
+  auto=> /> &1 &2 + + eqsm invl a_in _ ideal sk _.
   rewrite -(eqsm (a, i){2}).
   move => stm1 stm2 h.
   case (h = (a, i){2}) => [|hneq].
@@ -669,7 +654,7 @@ call (:
 auto=> />.
 split; 1: smt(emptyE).
 move=> a i. 
-apply GWAKEb_undef.
+apply GAKEb_undef.
 smt(emptyE).
 qed.
 
@@ -677,7 +662,7 @@ qed.
 (* Step 1: Apply the AEAD assumption. *)
 
 lemma Step1 bit &m:
-    `|Pr[E_GWAKE(Game1, A).run(bit) @ &m : res] - Pr[E_GWAKE(Game2, A).run(bit) @ &m : res]|
+    `|Pr[E_GAKE(Game1, A).run(bit) @ &m : res] - Pr[E_GAKE(Game2, A).run(bit) @ &m : res]|
   = 
     `|Pr[E_GAEAD(GAEAD0, Red_AEAD(A)).run(bit) @ &m : res] - Pr[E_GAEAD(GAEAD1, Red_AEAD(A)).run(bit) @ &m : res]|.
 proof.
@@ -876,7 +861,7 @@ qed.
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 2a: Remove collisions of all produced ciphertexts. *)
 
-lemma Step2 bit &m: `| Pr[E_GWAKE(Game2, A).run(bit) @ &m : res] - Pr[E_GWAKE(Game3, A).run(bit) @ &m : res] | <= Pr[E_GWAKE(Game2, A).run(bit) @ &m : Game2.bad].
+lemma Step2 bit &m: `| Pr[E_GAKE(Game2, A).run(bit) @ &m : res] - Pr[E_GAKE(Game3, A).run(bit) @ &m : res] | <= Pr[E_GAKE(Game2, A).run(bit) @ &m : Game2.bad].
 proof.
 rewrite StdOrder.RealOrder.distrC.
 byequiv (: _ ==> _) : Game3.bad => //; first last.
@@ -963,17 +948,16 @@ call (: Game3.bad, ={b0, bad, psk_map, state_map, dec_map}(Game2, Game3), ={bad}
   sp; wp ^if ^if; if=> //.
   sp; match =; auto. 
   + smt().
-  sp; if => //; 1: by smt(). 
   sp; if => //; if => //; auto => /#.
 + move=> &2 ->.
   proc; sp; wp ^if; if=> //; sp; match =; auto.
-  sp; if => //; sp; if => //; if => //. 
+  sp; if => //; if => //. 
   + auto => /#. 
   auto => />.
   by rewrite dskey_ll.
 + move=> &1.
   proc; sp; wp ^if; if=> //; sp; match =; auto.
-  sp; if => //; sp; if => //; if => //. 
+  sp; if => //; if => //. 
   + auto => /#. 
   auto => />.
   by rewrite dskey_ll.
@@ -985,7 +969,7 @@ qed.
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 2b: Bound the bad event. *)
 
-lemma Step2b bit &m: Pr[E_GWAKE(Game2, A).run(bit) @ &m : Game2.bad] <= ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt).
+lemma Step2b bit &m: Pr[E_GAKE(Game2, A).run(bit) @ &m : Game2.bad] <= ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt).
 proof.
 case (bit) => real_ideal.
 
@@ -1029,7 +1013,7 @@ apply (StdOrder.RealOrder.ler_trans Pr[BD.Exp(BD.Sample, Red_Coll_ideal(A)).main
   + proc; inline*; auto => /#.
   + proc; inline*; auto => /#.
   + proc; inline*; sp; if => //; sp; match => //. 
-    sp; if => //; sp; if => //. if => //; auto => /#.
+    sp; if => //; sp; if => //; auto => /#.
   auto=> /#.
 
 byequiv => //.
@@ -1114,7 +1098,7 @@ apply (StdOrder.RealOrder.ler_trans Pr[BD.Exp(BD.Sample, Red_Coll_real(A)).main(
   + proc; inline*; auto => /#.
   + proc; inline*; auto => /#.
   + proc; inline*; sp; if => //; sp; match => //. 
-    sp; if => //; sp; if => //. if => //; auto => /#.
+    sp; if => //; sp; if => //; auto => /#.
   auto=> /#.
 
 byequiv => //.
@@ -1204,7 +1188,7 @@ case: (sml.[h])=> //.
 by move=> [r' []] // [].
 qed.
 
-lemma Step3 bit &m: Pr[E_GWAKE(Game3, A).run(bit) @ &m : res] = Pr[E_GWAKE(Game4, A).run(bit) @ &m :res].
+lemma Step3 bit &m: Pr[E_GAKE(Game3, A).run(bit) @ &m : res] = Pr[E_GAKE(Game4, A).run(bit) @ &m :res].
 proof.
 byequiv (: ={glob A, arg} ==> _) => //.
 proc; inline*.
@@ -1311,8 +1295,6 @@ call(: ={b0, psk_map, bad, dec_map}(Game3, Game4)
   ); 1,2,4,5: by auto.
   move=> tr k tr' k'.
   sp ^if & -1 ^if & -1; if=> //.
-  + smt(eq_partners_nonces).
-  sp ^if & -1 ^if & -1; if=> //.
   + move => &1 &2 [] /> *.
     by rewrite (eq_obs_partners_nonces (a, i){2} Game3.state_map{1} Game4.state_map{2}) => //.
   auto=> /> &1 &2 + + eqsm invl a_in _.
@@ -1340,8 +1322,6 @@ call(: ={b0, psk_map, bad, dec_map}(Game3, Game4)
   ); 1,2,4,5: by auto.
   move=> tr k tr' k'.
   sp ^if & -1 ^if & -1; if=> //.
-  + smt(eq_partners_nonces).
-  sp ^if & -1 ^if & -1; if=> //.
   + move => &1 &2 [] /> *.
     by rewrite (eq_obs_partners_nonces (a, i){2} Game3.state_map{1} Game4.state_map{2}) => //.
   if => //.
@@ -1353,7 +1333,7 @@ call(: ={b0, psk_map, bad, dec_map}(Game3, Game4)
     case (h = (a, i){2}) => [|hneq].
     smt(get_set_sameE). 
     do rewrite get_set_neqE => //. rewrite eqsm => //.
-  auto=> /> &1 &2 + + eqsm invl a_in _ _ ideal sk _.
+  auto=> /> &1 &2 + + eqsm invl a_in _ ideal sk _.
   rewrite -(eqsm (a, i){2}).
   move => stm1 stm2 h.
   case (h = (a, i){2}) => [|hneq].
@@ -1374,7 +1354,7 @@ local clone import DProd.ProdSampling with
   type t2 <- nonce
 proof *.
 
-lemma Step4 bit &m: Pr[E_GWAKE(Game4, A).run(bit) @ &m : res] = Pr[E_GWAKE(Game5, A).run(bit) @ &m : res].
+lemma Step4 bit &m: Pr[E_GAKE(Game4, A).run(bit) @ &m : res] = Pr[E_GAKE(Game5, A).run(bit) @ &m : res].
 byequiv => //.
 proc*.
 transitivity* {1} { r <@ NROc.MainD(Red_ROM(A), NROc.RO).distinguish(b); }.
@@ -1619,7 +1599,7 @@ qed.
 (* Step 5: Apply the PRF assumption. *)
 
 lemma Step5 bit &m:
-    `|Pr[E_GWAKE(Game5, A).run(bit) @ &m : res] - Pr[E_GWAKE(Game6, A).run(bit) @ &m : res]|
+    `|Pr[E_GAKE(Game5, A).run(bit) @ &m : res] - Pr[E_GAKE(Game6, A).run(bit) @ &m : res]|
   = 
     `|Pr[E_GPRF(PRF0, Red_PRF(A)).run(bit) @ &m : res] - Pr[E_GPRF(PRF1, Red_PRF(A)).run(bit) @ &m : res]|.
 proof.
@@ -1818,7 +1798,7 @@ by move=> [r' []] // [].
 qed.
 
 lemma Step6 bit &m:
-    Pr[E_GWAKE(Game6, A).run(bit) @ &m : res] = Pr[E_GWAKE(Game7, A).run(bit) @ &m : res].
+    Pr[E_GAKE(Game6, A).run(bit) @ &m : res] = Pr[E_GAKE(Game7, A).run(bit) @ &m : res].
 proof.
 byequiv => //.
 proc; inline*.
@@ -1881,8 +1861,6 @@ call (:
   sp; match; 1..5: smt(); 1,2,4,5: by auto.
   move=> tr k tr' k'.
   sp ^if & -1 ^if & -1; if=> //.
-  + smt(eq_partners_sk).
-  sp ^if & -1 ^if & -1; if=> //.
   + move => &1 &2 [] /> *.
     by rewrite (eq_obs_partners_sk (a, i){2} Game6.state_map{1} Game7.state_map{2}) => //.
   auto=> /> &1 &2 + + eqsm invl a_in _.
@@ -1902,8 +1880,6 @@ call (:
   sp; match; 1..5: smt(); 1,2,4,5: by auto.
   move=> tr k tr' k'.
   sp ^if & -1 ^if & -1; if=> //.
-  + smt(eq_partners_sk).
-  sp ^if & -1 ^if & -1; if=> //.
   + move => &1 &2 [] /> *.
     by rewrite (eq_obs_partners_sk (a, i){2} Game6.state_map{1} Game7.state_map{2}) => //.
   if => //.  
@@ -1917,7 +1893,7 @@ call (:
     + smt(get_set_sameE). 
     do rewrite get_set_neqE => //. rewrite eqsm => //.
     smt(get_setE).
-  auto=> /> &1 &2 + + eqsm invl a_in _ _ _ _ ideal sk _.
+  auto=> /> &1 &2 + + eqsm invl a_in _ _ _ ideal sk _.
   rewrite -(eqsm (a, i){2}).
   move => stm1 stm2.
   split. move => h.
@@ -1933,7 +1909,7 @@ qed.
 (* ------------------------------------------------------------------------------------------ *)
 (* Step 7: Delaying sampling of the keys to reveal/test *)
 lemma Step7 &m b:
-    Pr[E_GWAKE(Game7, A).run(b) @ &m : res] = Pr[E_GWAKE(Game8, A).run(b) @ &m : res].
+    Pr[E_GAKE(Game7, A).run(b) @ &m : res] = Pr[E_GAKE(Game8, A).run(b) @ &m : res].
 proof.
 byequiv => //.
 proc*.
@@ -1996,8 +1972,6 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk(A), KROc.RO).distinguish(b); }.
     + smt().
     move=> tr k'.
     sp ^if & -1 ^if & -1; if => //.
-    + smt().
-    sp ^if & -1 ^if & -1; if => //.
     rcondf {2} 3; 1: by auto => /#.
     kill {2} ^r<$; 1: by islossless.
     auto=> /> &1 &2.
@@ -2008,8 +1982,6 @@ transitivity* {1} { r <@ KROc.MainD(Red_ROM_sk(A), KROc.RO).distinguish(b); }.
     sp 1 1; match = => //.
     + smt().
     move=> tr k'.
-    sp ^if & -1 ^if & -1; if => //.
-    + smt().
     sp ^if & -1 ^if & -1; if=> //.
     rcondf {2} ^if; 1: by auto => /#.
     if{1}.
@@ -2036,8 +2008,6 @@ sim (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk.WAKE_O, Game8)
   + smt().
   move => tr k'.
   sp ^if & -1 ^if & -1; if => //.
-  + smt().
-  sp ^if & -1 ^if & -1; if => //.
   sp; seq 1 1 : (#pre /\ r{1} = k''{2}); 1: by auto => />.
   case (Game8.b0{2}). 
   + rcondt {1} ^if{2}; 1: by auto => /#.
@@ -2056,8 +2026,6 @@ sim (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk.WAKE_O, Game8)
   sp; match = => //.
   + smt().
   move => tr k'.
-  sp ^if & -1 ^if & -1; if => //.
-  + smt().
   sp ^if & -1 ^if & -1; if => //.
   sp; seq 1 1 : (#pre /\ r{1} = k''{2}); 1: by auto => />.
   sim.
@@ -2079,7 +2047,7 @@ sim (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Red_ROM_sk.WAKE_O, Game8)
 by auto.
 qed.
 
-lemma final &m: `| Pr[E_GWAKE(GWAKEb(NSL), A).run(false) @ &m : res] - Pr[E_GWAKE(GWAKEb(NSL), A).run(true) @ &m : res]|
+lemma final &m: `| Pr[E_GAKE(GAKEb(NSL), A).run(false) @ &m : res] - Pr[E_GAKE(GAKEb(NSL), A).run(true) @ &m : res]|
   <= `|Pr[E_GAEAD(GAEAD0, Red_AEAD(A)).run(false) @ &m : res] - Pr[E_GAEAD(GAEAD1, Red_AEAD(A)).run(false) @ &m : res]|
       + `|Pr[E_GAEAD(GAEAD0, Red_AEAD(A)).run(true) @ &m : res] - Pr[E_GAEAD(GAEAD1, Red_AEAD(A)).run(true) @ &m : res]|
       + `|Pr[E_GPRF(PRF0, Red_PRF(A)).run(false) @ &m : res] - Pr[E_GPRF(PRF1, Red_PRF(A)).run(false) @ &m : res]|
@@ -2089,23 +2057,23 @@ proof.
 rewrite !Step0.
 do rewrite - Step1 -Step5 Step6 -Step4 -Step3.
 apply (StdOrder.RealOrder.ler_trans 
-        (`|Pr[E_GWAKE(Game1, A).run(false) @ &m : res] -
-  Pr[E_GWAKE(Game2, A).run(false) @ &m : res]| +
-`|Pr[E_GWAKE(Game1, A).run(true) @ &m : res] -
-  Pr[E_GWAKE(Game2, A).run(true) @ &m : res]| +
-`|Pr[E_GWAKE(Game2, A).run(false) @ &m : res] -
-  Pr[E_GWAKE(Game2, A).run(true) @ &m : res]|)).
+        (`|Pr[E_GAKE(Game1, A).run(false) @ &m : res] -
+  Pr[E_GAKE(Game2, A).run(false) @ &m : res]| +
+`|Pr[E_GAKE(Game1, A).run(true) @ &m : res] -
+  Pr[E_GAKE(Game2, A).run(true) @ &m : res]| +
+`|Pr[E_GAKE(Game2, A).run(false) @ &m : res] -
+  Pr[E_GAKE(Game2, A).run(true) @ &m : res]|)).
 smt(StdOrder.RealOrder.ler_norm_add).
-have : `|Pr[E_GWAKE(Game2, A).run(false) @ &m : res] -
-  Pr[E_GWAKE(Game2, A).run(true) @ &m : res]| <=
-`|Pr[E_GWAKE(Game3, A).run(false) @ &m : res] -
-  Pr[E_GWAKE(Game7, A).run(false) @ &m : res]| +
-`|Pr[E_GWAKE(Game3, A).run(true) @ &m : res] -
-  Pr[E_GWAKE(Game7, A).run(true) @ &m : res]| +
+have : `|Pr[E_GAKE(Game2, A).run(false) @ &m : res] -
+  Pr[E_GAKE(Game2, A).run(true) @ &m : res]| <=
+`|Pr[E_GAKE(Game3, A).run(false) @ &m : res] -
+  Pr[E_GAKE(Game7, A).run(false) @ &m : res]| +
+`|Pr[E_GAKE(Game3, A).run(true) @ &m : res] -
+  Pr[E_GAKE(Game7, A).run(true) @ &m : res]| +
 2%r * ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt); last by smt(StdOrder.RealOrder.ler_add2l).
 apply (StdOrder.RealOrder.ler_trans 
-        (`|Pr[E_GWAKE(Game3, A).run(false) @ &m : res] -
-  Pr[E_GWAKE(Game3, A).run(true) @ &m : res]| +
+        (`|Pr[E_GAKE(Game3, A).run(false) @ &m : res] -
+  Pr[E_GAKE(Game3, A).run(true) @ &m : res]| +
 2%r * ((q_m1 + q_m2 + q_m3) ^ 2)%r * mu1 dctxt (mode dctxt)
 )); 1: by smt(StdOrder.RealOrder.ler_norm_add Step2 Step2b).
 rewrite StdOrder.RealOrder.ler_add2r.

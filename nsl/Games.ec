@@ -1,5 +1,5 @@
 require import AllCore FMap FSet Distr NSL List.
-import GWAKEc AEADc.
+import GAKEc AEADc.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Intermediate Games *)
@@ -108,14 +108,11 @@ module Game1 = {
       (role, st) <- oget state_map.[(a, i)];
       match st with
       | Accepted trace k' => {
-        ps <- get_partners (a, i) (Some trace) role state_map;
-        if (card ps <= 1) {
-          ps <- get_observed_partners (a, i) state_map;
-          if (card ps = 0) {
-            k <- k';
-            ko <- Some k;
-            state_map.[(a, i)] <- (role, Observed trace k);
-          }
+        ps <- get_observed_partners (a, i) state_map;
+        if (card ps = 0) {
+          k <- k';
+          ko <- Some k;
+          state_map.[(a, i)] <- (role, Observed trace k);
         }
       }
       | Observed _ _   => { }
@@ -135,18 +132,15 @@ module Game1 = {
       (role, st) <- oget state_map.[(a, i)];
       match st with
       | Accepted trace k' => {
-        ps <- get_partners (a, i) (Some trace) role state_map;
-        if (card ps <= 1) {
-          ps <- get_observed_partners (a, i) state_map;
-          if (card ps = 0) {
-            if (b0 = false) {
-              k <- k';
-            } else {
-              k <$ dskey;
-            }
-            ko <- Some k;
-            state_map.[(a, i)] <- (role, Observed trace k);
+        ps <- get_observed_partners (a, i) state_map;
+        if (card ps = 0) {
+          if (b0 = false) {
+            k <- k';
+          } else {
+            k <$ dskey;
           }
+          ko <- Some k;
+          state_map.[(a, i)] <- (role, Observed trace k);
         }
       }
       | Observed _ _   => { }
@@ -317,12 +311,12 @@ module Game7 = Game6 with {
     ^if.^match#RPending.^match#Some.^skey<- ~ { skey <- witness; }
   ]
   proc rev_skey [
-    ^if.^match#Accepted.^if.^if.^k<- ~ {
+    ^if.^match#Accepted.^if.^k<- ~ {
       k <- oget sk_map.[trace];
     } 
   ]
   proc test [
-    ^if.^match#Accepted.^if.^if.^if.^k<- ~ {
+    ^if.^match#Accepted.^if.^if.^k<- ~ {
       k <- oget sk_map.[trace];
     } 
   ]
@@ -336,7 +330,7 @@ module Game8 = Game7 with {
   proc rev_skey [
     var k'' : skey
 
-    ^if.^match#Accepted.^if.^if.^k<- ~ {
+    ^if.^match#Accepted.^if.^k<- ~ {
       k'' <$ dskey;
       if (trace \notin sk_map) {
         sk_map.[trace] <- k'';
@@ -348,7 +342,7 @@ module Game8 = Game7 with {
   proc test [
     var k'' : skey
 
-    ^if.^match#Accepted.^if.^if.^if ~ {
+    ^if.^match#Accepted.^if.^if ~ {
       k'' <$ dskey;
       if (trace \notin sk_map) {
         sk_map.[trace] <- k'';
@@ -1181,9 +1175,9 @@ proof.
 proc.
 sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //; sp; if => //.
+sp; if => //.
 rcondt ^if.
-+ auto => /> &m st inv1 inv2 inv3 inv4 aiin card_ps card_obs_ps sk _.
++ auto => /> &m st inv1 inv2 inv3 inv4 aiin card_obs_ps sk _.
   have smai : Game8.state_map.[a, i]{m} = Some (role{m}, Accepted trace{m} k'{m}) by smt().
   case (inv1 a{m} i{m}); rewrite smai //.  
   + move => />.
@@ -1223,10 +1217,10 @@ rcondt ^if.
   rewrite fcard_eq0 in card_obs_ps.
   by rewrite card_obs_ps in_fset0.
  
-auto => /> &m st inv1 inv2 inv3 inv4 aiin card_ps card_obs_ps sk _. 
+auto => /> &m st inv1 inv2 inv3 inv4 aiin card_obs_ps sk _. 
 rewrite get_set_sameE //=.
 
-case: (role{m}) aiin st card_ps=> /> /domE; case _: (Game8.state_map.[a, i]{m})=> /> smai card_ps.
+case: (role{m}) aiin st => /> /domE; case _: (Game8.state_map.[a, i]{m})=> /> smai.
 case (inv1 a{m} i{m}); rewrite smai=> //=.
 move => /> b j stb c1 c2 c3 !->> dmc3 smbj c1_in_stb c2_in_stb c3_in_stb nskm.
 do! split.
@@ -1430,9 +1424,9 @@ proof.
 proc.
 sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //; sp; if => //.
+sp; if => //.
 rcondt ^if.
-+ auto => /> &m st inv1 inv2 inv3 inv4 aiin card_ps card_obs_ps sk _.
++ auto => /> &m st inv1 inv2 inv3 inv4 aiin card_obs_ps sk _.
   have smai : Game8.state_map.[a, i]{m} = Some (role{m}, Accepted trace{m} k'{m}) by smt().
   case (inv1 a{m} i{m}); rewrite smai //.  
   + move => />.
@@ -1476,9 +1470,9 @@ seq 1 : #pre; 1: by auto => />.
 sp. 
 seq 1 : #pre; 1: by auto => />.
 
-auto => /> &m skm st inv1 inv2 inv3 inv4 aiin card_ps card_obs_ps. 
+auto => /> &m skm st inv1 inv2 inv3 inv4 aiin card_obs_ps. 
 
-case: (role{m}) aiin st card_ps=> /> /domE; case _: (Game8.state_map.[a, i]{m})=> /> smai card_ps.
+case: (role{m}) aiin st => /> /domE; case _: (Game8.state_map.[a, i]{m})=> /> smai.
 case (inv1 a{m} i{m}); rewrite smai //=.
 move => /> b j stb c1 c2 c3 !->> dmc3 smbj c1_in_stb c2_in_stb c3_in_stb nskm.
 do! split.
@@ -1676,26 +1670,26 @@ qed.
 (* ------------------------------------------------------------------------------------------ *)
 (* Game 0 invariants *)
 
-inductive GWAKEb_inv (sm: (id * int, role * instance_state) fmap) (pskm : (id * id, pskey) fmap) (a: id) (i: int) =
-| GWAKEb_undef of
+inductive GAKEb_inv (sm: (id * int, role * instance_state) fmap) (pskm : (id * id, pskey) fmap) (a: id) (i: int) =
+| GAKEb_undef of
     (sm.[a, i] = None)
-| GWAKEb_aborted r st of
+| GAKEb_aborted r st of
     (sm.[a, i] = Some (r, Aborted st))
-| GWAKEb_ipending b na c1 kab of
+| GAKEb_ipending b na c1 kab of
     (sm.[a, i] = Some (Initiator, IPending (b, kab, na, c1) (a, c1)))
   & (pskm.[a, b] = Some kab)
-| GWAKEb_rpending b nb na c1 c2 kba of
+| GAKEb_rpending b nb na c1 c2 kba of
     (sm.[a, i] = Some (Responder, RPending (b, kba, nb, na, c1, c2) (b, c1) c2))
   & (pskm.[b, a] = Some kba)
-| GWAKEb_accepted r tr k of
+| GAKEb_accepted r tr k of
     (sm.[a, i] = Some (r, Accepted tr k))
-| GWAKEb_observed r tr k of
+| GAKEb_observed r tr k of
     (sm.[a, i] = Some (r, Observed tr k)).
 
-lemma GWAKEb_inv_neq a i c j v sm psk:
+lemma GAKEb_inv_neq a i c j v sm psk:
 ! (c = a /\ j = i) =>
-GWAKEb_inv sm psk c j =>
-GWAKEb_inv sm.[(a, i) <- v] psk c j.
+GAKEb_inv sm psk c j =>
+GAKEb_inv sm.[(a, i) <- v] psk c j.
 proof.
 move=> neq
 [
@@ -1706,24 +1700,24 @@ smbj
 | r tr k smbj
 | r tr k smbj
 ].
-+ apply GWAKEb_undef.
++ apply GAKEb_undef.
   by rewrite get_set_neqE.
-+ apply (GWAKEb_aborted _ _ _ _ r st).
++ apply (GAKEb_aborted _ _ _ _ r st).
   by rewrite get_set_neqE.
-+ apply (GWAKEb_ipending _ _ _ _ b na c1 kab) => //.
++ apply (GAKEb_ipending _ _ _ _ b na c1 kab) => //.
   by rewrite get_set_neqE.
-+ apply (GWAKEb_rpending _ _ _ _ b na nb c1 c2 kba)=> //.
++ apply (GAKEb_rpending _ _ _ _ b na nb c1 c2 kba)=> //.
   by rewrite get_set_neqE.
-+ apply (GWAKEb_accepted _ _ _ _ r tr k)=> //.
++ apply (GAKEb_accepted _ _ _ _ r tr k)=> //.
   by rewrite get_set_neqE.
-apply (GWAKEb_observed _ _ _ _ r tr k)=> //.
+apply (GAKEb_observed _ _ _ _ r tr k)=> //.
 by rewrite get_set_neqE.
 qed.
 
-hoare GWAKEb_inv_gen_pskey: GWAKEb(NSL).gen_pskey:
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i)
+hoare GAKEb_inv_gen_pskey: GAKEb(NSL).gen_pskey:
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i).
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
 if => //.
@@ -1738,64 +1732,64 @@ smbj
 | r tr k smbj
 | r tr k smbj
 ].
-+ exact GWAKEb_undef.
-+ exact (GWAKEb_aborted _ _ _ _ r).
-+ apply (GWAKEb_ipending _ _ _ _ b na c1 kab) => //.
++ exact GAKEb_undef.
++ exact (GAKEb_aborted _ _ _ _ r).
++ apply (GAKEb_ipending _ _ _ _ b na c1 kab) => //.
   smt(get_setE).  
-+ apply (GWAKEb_rpending _ _ _ _ b na nb c1 c2 kba) => //.
++ apply (GAKEb_rpending _ _ _ _ b na nb c1 c2 kba) => //.
   smt(get_setE).
-+ exact (GWAKEb_accepted _ _ _ _ r tr k).
-exact (GWAKEb_observed _ _ _ _ r tr k).
++ exact (GAKEb_accepted _ _ _ _ r tr k).
+exact (GAKEb_observed _ _ _ _ r tr k).
 qed.
     
-lemma GWAKEb_inv_aborted a i b j r st sm pm: GWAKEb_inv sm pm a i => GWAKEb_inv sm.[(b, j) <- (r, Aborted st)] pm a i.
+lemma GAKEb_inv_aborted a i b j r st sm pm: GAKEb_inv sm pm a i => GAKEb_inv sm.[(b, j) <- (r, Aborted st)] pm a i.
 proof.
 move=> inv.
 case ((a, i) = (b, j)) => /> => [|neq_ai].
-- apply (GWAKEb_aborted _ _ _ _ r st).
+- apply (GAKEb_aborted _ _ _ _ r st).
   by rewrite get_set_sameE.
-exact /GWAKEb_inv_neq/inv.
+exact /GAKEb_inv_neq/inv.
 qed.
 
-hoare GWAKEb_inv_send_msg1: GWAKEb(NSL).send_msg1:
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i)
+hoare GAKEb_inv_send_msg1: GAKEb(NSL).send_msg1:
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i).
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
 auto => /> &m inv ainin /domE abin na _ ca _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-+ apply (GWAKEb_ipending _ _ _ _ b{m} na ca (oget GWAKEb.psk_map.[(a, b)]{m})).
++ apply (GAKEb_ipending _ _ _ _ b{m} na ca (oget GAKEb.psk_map.[(a, b)]{m})).
   - by rewrite get_set_sameE.
   exact some_oget.
-exact /GWAKEb_inv_neq/inv.
+exact /GAKEb_inv_neq/inv.
 qed.
     
-hoare GWAKEb_inv_send_msg2: GWAKEb(NSL).send_msg2:
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i)
+hoare GAKEb_inv_send_msg2: GAKEb(NSL).send_msg2:
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i).
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
 sp; if => //.
 sp; match.
 + match None ^match; 1: by auto.
   auto => /> &m decn st inv bjnin abin a' i'.
-  exact /GWAKEb_inv_aborted/inv.
+  exact /GAKEb_inv_aborted/inv.
 match Some ^match; 1: by auto=> /#.
 auto => /> &m decn st inv bjnin /domE abin n _ cb0 cin a' i'.
 case ((a', i') = (b, j){m}) => /> => [|neq_ai].
 + rewrite /get_as_Some //=.
-  apply (GWAKEb_rpending _ _ _ _ a0{m} na{m} n ca{m} cb0 (oget GWAKEb.psk_map.[(a0, b)]{m})).
+  apply (GAKEb_rpending _ _ _ _ a0{m} na{m} n ca{m} cb0 (oget GAKEb.psk_map.[(a0, b)]{m})).
   - by rewrite get_set_sameE.
   exact some_oget.
-exact /GWAKEb_inv_neq/inv.
+exact /GAKEb_inv_neq/inv.
 qed.
 
-hoare GWAKEb_inv_send_msg3: GWAKEb(NSL).send_msg3:
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i)
+hoare GAKEb_inv_send_msg3: GAKEb(NSL).send_msg3:
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i).
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
 sp; if => //.
@@ -1803,20 +1797,20 @@ sp; match; 2..5: by auto.
 sp; match.
 - match None ^match; 1: by auto.
   auto => /> &m decn st inv aiin a' i'.
-  exact /GWAKEb_inv_aborted/inv.
+  exact /GAKEb_inv_aborted/inv.
 match Some ^match; 1: auto => /#.
 auto => /> &m decn st inv aiin n _ ca0 cin a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
 + rewrite /get_as_Some //=.
-  apply (GWAKEb_accepted _ _ _ _ Initiator (m1{m}, m2{m}, ca0) (prf (na{m}, nb{m}) (a{m}, b{m}))).
+  apply (GAKEb_accepted _ _ _ _ Initiator (m1{m}, m2{m}, ca0) (prf (na{m}, nb{m}) (a{m}, b{m}))).
   by rewrite get_set_sameE.
-exact /GWAKEb_inv_neq/inv.
+exact /GAKEb_inv_neq/inv.
 qed.
 
-hoare GWAKEb_inv_send_fin: GWAKEb(NSL).send_fin:
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i)
+hoare GAKEb_inv_send_fin: GAKEb(NSL).send_fin:
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i).
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
 sp; if => //.
@@ -1824,51 +1818,51 @@ sp; match; 1, 3..5: by auto.
 sp; match.
 - match None ^match; 1: by auto.
   auto => /> &m decn st inv bjin a' i'.
-  exact /GWAKEb_inv_aborted/inv.
+  exact /GAKEb_inv_aborted/inv.
 match Some ^match; 1: auto => /#.
 auto => /> &m decn st inv bjin a' i'.
 case ((a', i') = (b, j){m}) => /> => [|neq_ai].
 + rewrite /get_as_Some //=.
-  apply (GWAKEb_accepted _ _ _ _ Responder (m1{m}, m2{m}, m3{m}) (prf (na{m}, nb{m}) (a{m}, b{m}))).
+  apply (GAKEb_accepted _ _ _ _ Responder (m1{m}, m2{m}, m3{m}) (prf (na{m}, nb{m}) (a{m}, b{m}))).
   by rewrite get_set_sameE. 
-exact /GWAKEb_inv_neq/inv.
+exact /GAKEb_inv_neq/inv.
 qed.
 
-hoare GWAKEb_inv_rev_skey: GWAKEb(NSL).rev_skey:
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i)
+hoare GAKEb_inv_rev_skey: GAKEb(NSL).rev_skey:
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i).
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
-auto => /> &m st inv aiin _ _ a' i'.
+auto => /> &m st inv aiin _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-- apply (GWAKEb_observed _ _ _ _ role{m} trace{m} k'{m}).
+- apply (GAKEb_observed _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
-exact /GWAKEb_inv_neq/inv.
+exact /GAKEb_inv_neq/inv.
 qed.
 
-hoare GWAKEb_inv_test: GWAKEb(NSL).test:
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i)
+hoare GAKEb_inv_test: GAKEb(NSL).test:
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
 ==> 
-    (forall a i, GWAKEb_inv GWAKEb.state_map GWAKEb.psk_map a i).
+    (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
 sp; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //; sp; if => //.
+sp; if => //.
 if => //.
-+ auto => /> &m st inv aiin _ _ a' i'.
++ auto => /> &m st inv aiin _ a' i'.
   case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-  - apply (GWAKEb_observed _ _ _ _ role{m} trace{m} k'{m}).
+  - apply (GAKEb_observed _ _ _ _ role{m} trace{m} k'{m}).
     by rewrite get_set_sameE.
-  exact /GWAKEb_inv_neq/inv.
-auto => /> &m st inv aiin _ _ ideal sk _ a' i'.
+  exact /GAKEb_inv_neq/inv.
+auto => /> &m st inv aiin _ ideal sk _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
-- apply (GWAKEb_observed _ _ _ _ role{m} trace{m} sk).
+- apply (GAKEb_observed _ _ _ _ role{m} trace{m} sk).
   by rewrite get_set_sameE.
-exact /GWAKEb_inv_neq/inv.
+exact /GAKEb_inv_neq/inv.
 qed.
 
 (* ------------------------------------------------------------------------------------------ *)
@@ -2033,7 +2027,7 @@ proof.
 proc; inline *.
 sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
-auto => /> &m st inv aiin _ _ a' i'.
+auto => /> &m st inv aiin _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
 - apply (Game1_observed _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
@@ -2048,14 +2042,14 @@ proof.
 proc; inline *.
 sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //; sp; if => //.
+sp; if => //.
 if => //.
-+ auto => /> &m st inv aiin _ _ a' i'.
++ auto => /> &m st inv aiin _ a' i'.
   case ((a', i') = (a, i){m}) => /> => [|neq_ai].
   - apply (Game1_observed _ _ _ _ role{m} trace{m} k'{m}).
     by rewrite get_set_sameE.
   exact /Game1_inv_neq/inv.
-auto => /> &m st inv aiin _ _ ideal sk _ a' i'.
+auto => /> &m st inv aiin _ ideal sk _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
 - apply (Game1_observed _ _ _ _ role{m} trace{m} sk).
   by rewrite get_set_sameE.
@@ -2339,7 +2333,7 @@ proof.
 proc; inline *.
 sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
-auto => /> &m st inv aiin _ _ a' i'.
+auto => /> &m st inv aiin _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
 - apply (Game3_observed _ _ _ _ role{m} trace{m} k'{m}).
   by rewrite get_set_sameE.
@@ -2354,14 +2348,14 @@ proof.
 proc; inline *.
 sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //; sp; if => //.
+sp; if => //.
 if => //.
-+ auto => /> &m st inv aiin _ _ a' i'.
++ auto => /> &m st inv aiin _ a' i'.
   case ((a', i') = (a, i){m}) => /> => [|neq_ai].
   - apply (Game3_observed _ _ _ _ role{m} trace{m} k'{m}).
     by rewrite get_set_sameE.
   exact /Game3_inv_neq_sm/inv.
-auto => /> &m st inv aiin _ _ ideal sk _ a' i'.
+auto => /> &m st inv aiin _ ideal sk _ a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
 - apply (Game3_observed _ _ _ _ role{m} trace{m} sk).
   by rewrite get_set_sameE.
@@ -2602,7 +2596,7 @@ proof.
 proc.
 sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
-auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ _.
+auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _.
 split; 1: smt(get_setE).
 move=> a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
@@ -2619,16 +2613,16 @@ proof.
 proc.
 sp; wp ^if; if => //.
 sp; match; 1,2,4,5: by auto.
-sp; if => //; sp; if => //.
+sp; if => //.
 if => //.
-+ auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ _.
++ auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _.
   split; 1: smt(get_setE).
   move=> a' i'.
   case ((a', i') = (a, i){m}) => /> => [|neq_ai].
   - apply (Game5_observed _ _ _ _ _ role{m} trace{m} k'{m}).
     by rewrite get_set_sameE.
   exact /Game5_inv_neq_sm/inv5.
-auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ _ ideal sk _.
+auto => /> &m st inv1 inv2 inv3 inv4 inv5 aiin _ ideal sk _.
 split; 1: smt(get_setE).
 move=> a' i'.
 case ((a', i') = (a, i){m}) => /> => [|neq_ai].
