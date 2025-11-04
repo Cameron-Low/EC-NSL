@@ -444,9 +444,9 @@ do! split.
   apply (Game8_dm_undef).
   + move => a b.
     apply mem_empty.
-  + move => a b c1 c2.
+  + move => a b c1.
     by rewrite mem_empty.
-  + move => a b c1 c2 c3.
+  + move => a b c1 c2.
     by rewrite mem_empty.
   move => pk ad pk' ad' c .
   by rewrite mem_empty.

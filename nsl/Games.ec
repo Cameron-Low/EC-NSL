@@ -429,8 +429,8 @@ inductive Game8_inv_dm
 =
 | Game8_dm_undef of
     (forall a b, ((a, b), msg1_data a b, c) \notin dm)
-  & (forall a b c1 c2, ((a, b), msg2_data a b c1, c2) \in dm => c <> c1 /\ c <> c2)
-  & (forall a b c1 c2 c3, ((a, b), msg3_data a b c1 c2, c3) \in dm => c <> c1 /\ c <> c2 /\ c <> c3)
+  & (forall a b c1, ((a, b), msg2_data a b c1, c) \notin dm)
+  & (forall a b c1 c2, ((a, b), msg3_data a b c1 c2, c) \notin dm)
 | Game8_dm_m1 a b i st of
     (((a, b), msg1_data a b, c) \in dm)
   & (sm.[a, i] = Some (Initiator, st))
