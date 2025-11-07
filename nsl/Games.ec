@@ -25,11 +25,11 @@ module Game1 = {
       psk_map.[(a, b)] <- k;
     }
   }
-  
+
   proc send_msg1(a, i, b) = {
     var na, ca;
     var mo <- None;
- 
+
     if ((a, i) \notin state_map /\ (a, b) \in psk_map) {
       na <$ dnonce;
       ca <$ enc (oget psk_map.[(a, b)]) (msg1_data a b) na;
@@ -42,7 +42,7 @@ module Game1 = {
   proc send_msg2(b, j, m1) = {
     var a, ca, role, st, nb, cb;
     var mo <- None;
- 
+
     (a, ca) <- m1;
     (role, st) <- oget state_map.[(b, j)];
     if ((b, j) \notin state_map /\ (a, b) \in psk_map) {
@@ -61,7 +61,7 @@ module Game1 = {
   proc send_msg3(a, i, m2) = {
     var role, st, b, psk, na, ca, skey, ok, caf;
     var mo <- None;
- 
+
     if ((a, i) \in state_map) {
       (role, st) <- oget state_map.[(a, i)];
       if (st is IPending s m1) {
@@ -100,10 +100,10 @@ module Game1 = {
     return mo;
   }
 
-  proc rev_skey(a, i) = {
+  proc reveal(a, i) = {
     var role, st, ps, k;
     var ko <- None;
- 
+
     if ((a, i) \in state_map) {
       (role, st) <- oget state_map.[(a, i)];
       match st with
@@ -123,11 +123,11 @@ module Game1 = {
     }
     return ko;
   }
- 
+
   proc test(a, i) = {
     var role, st, ps, k;
     var ko <- None;
- 
+
     if ((a, i) \in state_map) {
       (role, st) <- oget state_map.[(a, i)];
       match st with
@@ -157,11 +157,11 @@ module Game1 = {
 module Game2 = Game1 with {
   var dec_map: ((id * id) * msg_data * ctxt, nonce) fmap
   var bad : bool
-  
+
   proc init_mem [
     -1 + { dec_map <- empty; bad <- false; }
   ]
-  
+
   proc send_msg1 [
     ^if.^na<$ -
     ^if.^ca<$ ~ {
@@ -228,9 +228,9 @@ module Game4 = Game3 with {
   ]
 
   proc send_msg3 [
-    ^if.^match#IPending.^match#Some.^if.^skey<- ~ { 
+    ^if.^match#IPending.^match#Some.^if.^skey<- ~ {
       skey <- prf (oget (dec_map.[((a, b), msg1_data a b, ca)]), nb) (a, b);
-    } 
+    }
   ]
 
   proc send_fin [
@@ -243,7 +243,7 @@ module Game4 = Game3 with {
 (* Delay nonce sampling *)
 module Game5 = Game4 with {
   var prfkey_map : (msg_data * ctxt, nonce * nonce) fmap
-  
+
   proc init_mem [
     -1 + { prfkey_map <- empty; }
   ]
@@ -268,11 +268,11 @@ module Game5 = Game4 with {
     ^if.^match#IPending.^match#Some.^if.^dec_map<- ~ {
       dec_map.[((a, b), msg3_data a b ca m2, caf)] <- witness;
     }
-    ^if.^match#IPending.^match#Some.^if.^skey<- ~ { 
+    ^if.^match#IPending.^match#Some.^if.^skey<- ~ {
       (na, nb') <$ dnonce `*` dnonce;
       prfkey_map.[(msg3_data a b ca m2, caf)] <- (na, nb');
       skey <- prf (na, nb') (a, b);
-    } 
+    }
   ]
 
   proc send_fin [
@@ -284,7 +284,7 @@ module Game5 = Game4 with {
 
 module Game6 = Game5 with {
   var sk_map : (trace, skey) fmap
-  
+
   proc init_mem [
     -1 + { sk_map <- empty; }
   ]
@@ -310,15 +310,15 @@ module Game7 = Game6 with {
   proc send_fin [
     ^if.^match#RPending.^match#Some.^skey<- ~ { skey <- witness; }
   ]
-  proc rev_skey [
+  proc reveal [
     ^if.^match#Accepted.^if.^k<- ~ {
       k <- oget sk_map.[trace];
-    } 
+    }
   ]
   proc test [
     ^if.^match#Accepted.^if.^if.^k<- ~ {
       k <- oget sk_map.[trace];
-    } 
+    }
   ]
 }.
 
@@ -327,7 +327,7 @@ module Game8 = Game7 with {
     [^if.^match#IPending.^match#Some.^if.^skey<$ - ^sk_map<-] -
   ]
 
-  proc rev_skey [
+  proc reveal [
     var k'' : skey
 
     ^if.^match#Accepted.^if.^k<- ~ {
@@ -363,8 +363,8 @@ print Game8.
 
 (* Return the messages from a state *)
 op get_msgs s : ctxt list =
-with s = Accepted t _   => [t.`1.`2; t.`2; t.`3]  
-with s = Observed t _   => [t.`1.`2; t.`2; t.`3]  
+with s = Accepted t _   => [t.`1.`2; t.`2; t.`3]
+with s = Observed t _   => [t.`1.`2; t.`2; t.`3]
 with s = IPending _ m1   => [m1.`2]
 with s = RPending _ m1 m2 => [m1.`2; m2]
 with s = Aborted v  =>
@@ -373,8 +373,8 @@ with s = Aborted v  =>
   | I m1 => [m1]
   | R2 m1 m2 => [m1; m2]
 end.
-    
-inductive Game8_inv 
+
+inductive Game8_inv
   (sm: (id * int, role * instance_state) fmap)
   (skm : (trace, skey) fmap)
   (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
@@ -474,7 +474,7 @@ op Game8_inv_full
   /\ (forall a c1 c2 c3, ((a, c1), c2, c3) \in skm => exists b, ((a, b), msg3_data a b c1 c2, c3) \in dm).
 
 hoare Game8_inv_send_msg1: Game8.send_msg1:
-  Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map 
+  Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map
   ==>
   Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map.
 proof.
@@ -544,7 +544,7 @@ case (c = ca{m}) => /> => [| neq].
     rewrite get_setE.
     case ((b', j') = (a, i){m}) => />.
     move => neq smbj'.
-    case (inv1 b' j'); rewrite smbj' //=. 
+    case (inv1 b' j'); rewrite smbj' //=.
     + smt().
     + smt().
     + move => /> b j stb c1 c2 c3.
@@ -588,7 +588,7 @@ smt(mem_set).
 qed.
 
 hoare Game8_inv_send_msg2: Game8.send_msg2:
-  Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map 
+  Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map
   ==>
   Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map.
 proof.
@@ -638,26 +638,26 @@ sp; match => //.
 
   (* Decmap invariant *)
   move => c.
-  
+
   case (inv2 c).
   + move => ndm1 ndm2 ndm3.
     exact (Game8_dm_undef _ _ _).
-  
+
   + move => a' b' i' st dmc smai c_in_st uniq.
     apply (Game8_dm_m1 _ _ _ a' b' i' st) => //.
     + smt(get_setE).
     smt(get_setE).
-  
+
   + move => a' b' j' st c1 dmc1 dmc smbj c1_in_st c_in_st uniq.
     apply (Game8_dm_m2 _ _ _ a' b' j' st c1) => //.
     + smt(get_setE).
     smt(get_setE).
-  
+
   move => a' b' i' st c1 c2 dmc1 dmc2 dmc smai c1_in_st c2_in_st c_in_st uniq.
   apply (Game8_dm_m3 _ _ _ a' b' i' st c1 c2) => //.
   + smt(get_setE).
   smt(get_setE).
-  
+
   (* Ciphertext Decmap Uniqueness *)
   exact inv3.
 
@@ -718,14 +718,14 @@ move => c.
 
 case (c = cb{m}) => /> => [| neq].
 + apply (Game8_dm_m2 _ _ _ a{m} b{m} j{m} (RPending (a, witness, witness, witness, ca, cb){m} (a, ca){m} cb{m}) ca{m}) => //.
-  + smt(mem_set). 
+  + smt(mem_set).
   + by rewrite mem_set.
   + by rewrite get_set_sameE.
   + move => [a' i'] st'.
     rewrite get_setE.
     case ((a', i') = (b, j){m}) => />.
     move => neq smai'.
-    case (inv1 a' i'); rewrite smai' //=. 
+    case (inv1 a' i'); rewrite smai' //=.
     + smt().
     + smt().
     + move => /> a i st c1 c2 c3.
@@ -787,7 +787,7 @@ sp; match => //.
   case: ((a', i') = (a, i){m}) => /> => [| neq].
   + apply (Game8_aborted_i _ _ _ _ _ b{m} ca{m}) => //.
     by rewrite get_set_sameE.
-  
+
   case (inv1 a' i').
   + move => sm.
     apply Game8_undef.
@@ -821,30 +821,30 @@ sp; match => //.
   move => r id1 id2 c1 c2 c3 k sma' dmc3 skm_k ids_eq.
   apply (Game8_observed _ _ _ _ _ r id1 id2 c1 c2 c3 k) => //.
   by rewrite get_set_neqE.
-  
+
   (* Decmap invariant *)
   move => c.
-  
+
   case (inv2 c).
   + move => ndm1 ndm2 ndm3.
     exact (Game8_dm_undef _ _ _).
-  
+
   + move => a' b' i' st.
     case ((a', i') = (a, i){m}) => /> => [| neq].
     + rewrite smai => /> dmc uniq.
-      apply (Game8_dm_m1 _ _ _ a{m} b{m} i{m} (Aborted (I ca{m}))) => //. 
-      + by rewrite get_set_sameE.      
+      apply (Game8_dm_m1 _ _ _ a{m} b{m} i{m} (Aborted (I ca{m}))) => //.
+      + by rewrite get_set_sameE.
       smt(get_setE).
     move => dmc smai' c_in_st uniq.
     apply (Game8_dm_m1 _ _ _ a' b' i' st) => //.
     + smt(get_setE).
     smt(get_setE).
-  
+
   + move => a' b' j' st c1 dmc1 dmc smbj c1_in_st c_in_st uniq.
     apply (Game8_dm_m2 _ _ _ a' b' j' st c1) => //.
     + smt(get_setE).
     smt(get_setE).
-  
+
   move => a' b' i' st c1 c2 dmc1 dmc2 dmc smai' c1_in_st c2_in_st c_in_st uniq.
   apply (Game8_dm_m3 _ _ _ a' b' i' st c1 c2) => //.
   + smt(get_setE).
@@ -855,7 +855,7 @@ sp; if=> //.
 auto=> />.
 move=> &m bad dm ? inv1 inv2 inv3 inv4 ai_in_sm nbad ? ?.
 have smai : Game8.state_map.[a, i]{m} = Some (role, IPending (b, psk, na, ca) m1){m} by smt().
-case (inv1 a{m} i{m}); rewrite smai => //.    
+case (inv1 a{m} i{m}); rewrite smai => //.
 move => /> !->> ca_in_dm ca3_nin_dm.
 have dmm2: (((a, b), msg2_data a b ca, m2) \in Game8.dec_map){m} by smt().
 case (inv2 m2{m}); 1,2,4: smt().
@@ -869,7 +869,7 @@ case: ((a', i') = (a, i){m}) => /> => [| neq].
   + by rewrite get_set_sameE.
   + by rewrite mem_set.
   + smt(get_set_neqE).
-  + case (inv1 b{m} j); rewrite smbj //. 
+  + case (inv1 b{m} j); rewrite smbj //.
     + smt(get_setE).
     + smt(get_setE).
     + move => a'' i'' sta'' c1 c2 c3.
@@ -930,7 +930,7 @@ case (c = caf{m}) => /> => [| neq].
     rewrite get_setE.
     case ((b', j') = (a, i){m}) => />.
     move => neq smbj'.
-    case (inv1 b' j'); rewrite smbj' //=. 
+    case (inv1 b' j'); rewrite smbj' //=.
     + smt().
     + smt().
     + move => /> b c1 c2 c3.
@@ -948,9 +948,9 @@ case (inv2 c).
 + move => a' b' i' st.
   case ((a', i') = (a, i){m}) => /> => [| neq'].
   + rewrite smai => /> dmc uniq'.
-    apply (Game8_dm_m1 _ _ _ a{m} b{m} i{m} (Accepted ((a, ca), m2, caf){m} witness)) => //. 
+    apply (Game8_dm_m1 _ _ _ a{m} b{m} i{m} (Accepted ((a, ca), m2, caf){m} witness)) => //.
     + smt(mem_set).
-    + by rewrite get_set_sameE.      
+    + by rewrite get_set_sameE.
     smt(get_setE).
   move => dmc smai' c_in_st uniq'.
   apply (Game8_dm_m1 _ _ _ a' b' i' st) => //.
@@ -989,10 +989,10 @@ sp; wp ^if; if=> //.
 sp; match => //.
 sp; match => //.
 + auto=> />.
-  move=> &m ? ? inv1 inv2 inv3 inv4 ?. 
+  move=> &m ? ? inv1 inv2 inv3 inv4 ?.
   have smbj : Game8.state_map.[b, j]{m} = Some (role, RPending (a, psk, na, nb, ca, cb) m1 m2){m} by smt().
   case (inv1 b{m} j{m}); rewrite smbj //=.
-  move => /> !->> dmcb. 
+  move => /> !->> dmcb.
   do! split.
 
   (* State Map invariant *)
@@ -1041,29 +1041,29 @@ sp; match => //.
 
   (* Decmap invariant *)
   move => c.
-  
+
   case (inv2 c).
   + move => ndm1 ndm2 ndm3.
     exact (Game8_dm_undef _ _ _).
-  
+
   + move => a' b' i' st dmc smai c_in_st uniq.
     apply (Game8_dm_m1 _ _ _ a' b' i' st) => //.
     + smt(get_setE).
     smt(get_setE).
-  
+
   + move => a' b' j' st c1.
     case ((b', j') = (b, j){m}) => /> => [| neq].
     + rewrite smbj => /> dmc1 dmc c1_eqs c_eqs uniq.
-      apply (Game8_dm_m2 _ _ _ a{m} b{m} j{m} (Aborted (R2 ca{m} cb{m})) ca{m}) => //. 
+      apply (Game8_dm_m2 _ _ _ a{m} b{m} j{m} (Aborted (R2 ca{m} cb{m})) ca{m}) => //.
       + smt().
       + smt().
-      + by rewrite get_set_sameE.      
+      + by rewrite get_set_sameE.
       smt(get_setE).
     move => dmc1 dmc smbj' c1_in_st c_in_st uniq.
     apply (Game8_dm_m2 _ _ _ a' b' j' st c1) => //.
     + smt(get_setE).
     smt(get_setE).
-  
+
   move => a' b' i' st c1 c2 dmc1 dmc2 dmc smai c1_in_st c2_in_st c_in_st uniq.
   apply (Game8_dm_m3 _ _ _ a' b' i' st c1 c2) => //.
   + smt(get_setE).
@@ -1073,7 +1073,7 @@ auto=> />.
 move=> &m ? ? inv1 inv2 inv3 inv4 bjin.
 have smbj : Game8.state_map.[b, j]{m} = Some (role, RPending (a, psk, na, nb, ca, cb) m1 m2){m} by smt().
 case (inv1 b{m} j{m}); rewrite smbj //=.
-move => /> !->> dmcb. 
+move => /> !->> dmcb.
 have dmm3: (((a, b), msg3_data a b ca cb, m3) \in Game8.dec_map){m} by smt().
 case (inv2 m3{m}); 1..3: smt().
 move => a' b' i sta c1 c2 dmca _ /(inv3 _ _ _ _ _ dmm3) /> smai ca_in_sta cb_in_sta m3_in_sta uniq.
@@ -1151,9 +1151,9 @@ case (inv2 c).
 + move => a' b' j' st c1.
   case ((b', j') = (b, j){m}) => /> => [| neq].
   + rewrite smbj => /> dmc1 dmc c1_eqs c_eqs uniq'.
-    apply (Game8_dm_m2 _ _ _ a{m} b{m} j{m} (Accepted ((a, ca), cb, m3){m} witness) ca{m}) => //. 
+    apply (Game8_dm_m2 _ _ _ a{m} b{m} j{m} (Accepted ((a, ca), cb, m3){m} witness) ca{m}) => //.
     + smt().
-    + by rewrite get_set_sameE.      
+    + by rewrite get_set_sameE.
     smt(get_setE).
     smt(get_setE).
   move => dmc1 dmc smbj' c1_in_st c_in_st uniq'.
@@ -1167,7 +1167,7 @@ apply (Game8_dm_m3 _ _ _ a' b' i' st c1 c2) => //.
 smt(get_setE).
 qed.
 
-hoare Game8_inv_rev_skey: Game8.rev_skey:
+hoare Game8_inv_reveal: Game8.reveal:
   Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map
   ==>
   Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map.
@@ -1179,7 +1179,7 @@ sp; if => //.
 rcondt ^if.
 + auto => /> &m st inv1 inv2 inv3 inv4 aiin card_obs_ps sk _.
   have smai : Game8.state_map.[a, i]{m} = Some (role{m}, Accepted trace{m} k'{m}) by smt().
-  case (inv1 a{m} i{m}); rewrite smai //.  
+  case (inv1 a{m} i{m}); rewrite smai //.
   + move => />.
     move => b j stb c1 c2 c3 !->> dmc3 smbj.
     case (inv1 b j); rewrite smbj //.
@@ -1192,7 +1192,7 @@ rcondt ^if.
     case (c3' = c3); 2: smt().
     case (id1 = a{m}); 2: smt().
     move => />.
-    have bj_partner : (b, j) \in get_partners (a, i){m} (Some ((a{m}, c1), c2, c3)) Initiator Game8.state_map{m}.
+    have bj_partner : (b, j) \in get_partners (Some ((a{m}, c1), c2, c3)) Initiator Game8.state_map{m}.
     + rewrite /get_partners mem_fdom mem_filter /#.
     have // : (b, j) \in get_observed_partners (a, i){m} Game8.state_map{m}.
     + rewrite /get_observed_partners in_filter /#.
@@ -1210,14 +1210,14 @@ rcondt ^if.
   case (c3' = c3); 2: smt().
   case (id1 = b); 2: smt().
   move => />.
-  have bj_partner : (b, j) \in get_partners (a, i){m} (Some ((b, c1), c2, c3)) Responder Game8.state_map{m}.
+  have bj_partner : (b, j) \in get_partners (Some ((b, c1), c2, c3)) Responder Game8.state_map{m}.
   + rewrite /get_partners mem_fdom mem_filter /#.
   have // : (b, j) \in get_observed_partners (a, i){m} Game8.state_map{m}.
   + rewrite /get_observed_partners in_filter /#.
   rewrite fcard_eq0 in card_obs_ps.
   by rewrite card_obs_ps in_fset0.
- 
-auto => /> &m st inv1 inv2 inv3 inv4 aiin card_obs_ps sk _. 
+
+auto => /> &m st inv1 inv2 inv3 inv4 aiin card_obs_ps sk _.
 rewrite get_set_sameE //=.
 
 case: (role{m}) aiin st => /> /domE; case _: (Game8.state_map.[a, i]{m})=> /> smai.
@@ -1270,7 +1270,7 @@ case (inv1 a' i').
   move => neqbj' sma' dmc3' smbj' c_in_stb obs_skmn.
   apply (Game8_accepted_r _ _ _ _ _ b'' j' stb' c1' c2' c3') => //.
   + by rewrite get_set_neqE.
-  + smt(get_setE).  
+  + smt(get_setE).
   by case (inv2 c3); smt(get_setE).
 move => r id1 id2 c1' c2' c3' k smb' dmc3' skm_k ids_eq.
 apply (Game8_observed _ _ _ _ _ r id1 id2 c1' c2' c3' k) => //.
@@ -1285,7 +1285,7 @@ case (inv2 c).
 + move => ndm1 ndm2 ndm3.
   exact (Game8_dm_undef _ _ _).
 
-+ move => a' b' i'. 
++ move => a' b' i'.
   case ((a', i') = (a, i){m}) => />.
   + rewrite smai => />.
     move => dmc eq_c uniq.
@@ -1366,16 +1366,16 @@ case (inv1 a' i').
   case (c2' = c2); 2: smt().
   case (c1' = c1); 2: smt().
   move => />.
-  case (inv2 c3); 1..3: smt(). 
-  case (inv2 c2); 1,2,4: smt(). 
-  smt().  
+  case (inv2 c3); 1..3: smt().
+  case (inv2 c2); 1,2,4: smt().
+  smt().
 + move => b' j' stb c1' c2' c3' sma' dmc3' smbj' c_in_stb obs_sk.
   apply (Game8_accepted_r _ _ _ _ _ b' j' stb c1' c2' c3') => //.
   + by rewrite get_set_neqE.
-  + smt(get_setE).  
-  case (inv2 c3); 1..3: smt(). 
-  case (inv2 c2); 1,2,4: smt(). 
-  smt(mem_set).  
+  + smt(get_setE).
+  case (inv2 c3); 1..3: smt().
+  case (inv2 c2); 1,2,4: smt().
+  smt(mem_set).
 move => r id1 id2 c1' c2' c3' k smb' dmc3' skm_k ids_eq.
 apply (Game8_observed _ _ _ _ _ r id1 id2 c1' c2' c3' k) => //.
 + by rewrite get_set_neqE.
@@ -1389,7 +1389,7 @@ case (inv2 c).
 + move => ndm1 ndm2 ndm3.
   exact (Game8_dm_undef _ _ _).
 
-+ move => a' b' i' st' dmc smai' c_in_st' uniq. 
++ move => a' b' i' st' dmc smai' c_in_st' uniq.
   apply (Game8_dm_m1 _ _ _ a' b' i' st') => //.
   + smt(get_setE).
   smt(get_setE).
@@ -1397,13 +1397,13 @@ case (inv2 c).
 + move => a' b' j' st' c1'.
   case ((b', j') = (a, i){m}).
   + move => /> *.
-    apply (Game8_dm_m2 _ _ _ a' a{m} i{m} (Observed ((b, c1), c2, c3) sk) c1') => //.   
+    apply (Game8_dm_m2 _ _ _ a' a{m} i{m} (Observed ((b, c1), c2, c3) sk) c1') => //.
     + smt(get_setE).
     + smt(get_setE).
     + smt(get_setE).
     smt(get_setE).
   move => neq' dmc1' dmc smbj' c1_in_st c_in_st uniq.
-  apply (Game8_dm_m2 _ _ _ a' b' j' st' c1') => //.   
+  apply (Game8_dm_m2 _ _ _ a' b' j' st' c1') => //.
   + smt(get_setE).
   smt(get_setE).
 
@@ -1428,7 +1428,7 @@ sp; if => //.
 rcondt ^if.
 + auto => /> &m st inv1 inv2 inv3 inv4 aiin card_obs_ps sk _.
   have smai : Game8.state_map.[a, i]{m} = Some (role{m}, Accepted trace{m} k'{m}) by smt().
-  case (inv1 a{m} i{m}); rewrite smai //.  
+  case (inv1 a{m} i{m}); rewrite smai //.
   + move => />.
     move => b j stb c1 c2 c3 !->> dmc3 smbj.
     case (inv1 b j); rewrite smbj //.
@@ -1441,7 +1441,7 @@ rcondt ^if.
     case (c3' = c3); 2: smt().
     case (id1 = a{m}); 2: smt().
     move => />.
-    have bj_partner : (b, j) \in get_partners (a, i){m} (Some ((a{m}, c1), c2, c3)) Initiator Game8.state_map{m}.
+    have bj_partner : (b, j) \in get_partners (Some ((a{m}, c1), c2, c3)) Initiator Game8.state_map{m}.
     + rewrite /get_partners mem_fdom mem_filter /#.
     have // : (b, j) \in get_observed_partners (a, i){m} Game8.state_map{m}.
     + rewrite /get_observed_partners in_filter /#.
@@ -1459,7 +1459,7 @@ rcondt ^if.
   case (c3' = c3); 2: smt().
   case (id1 = b); 2: smt().
   move => />.
-  have bj_partner : (b, j) \in get_partners (a, i){m} (Some ((b, c1), c2, c3)) Responder Game8.state_map{m}.
+  have bj_partner : (b, j) \in get_partners (Some ((b, c1), c2, c3)) Responder Game8.state_map{m}.
   + rewrite /get_partners mem_fdom mem_filter /#.
   have // : (b, j) \in get_observed_partners (a, i){m} Game8.state_map{m}.
   + rewrite /get_observed_partners in_filter /#.
@@ -1467,10 +1467,10 @@ rcondt ^if.
   by rewrite card_obs_ps in_fset0.
 
 seq 1 : #pre; 1: by auto => />.
-sp. 
+sp.
 seq 1 : #pre; 1: by auto => />.
 
-auto => /> &m skm st inv1 inv2 inv3 inv4 aiin card_obs_ps. 
+auto => /> &m skm st inv1 inv2 inv3 inv4 aiin card_obs_ps.
 
 case: (role{m}) aiin st => /> /domE; case _: (Game8.state_map.[a, i]{m})=> /> smai.
 case (inv1 a{m} i{m}); rewrite smai //=.
@@ -1522,7 +1522,7 @@ case (inv1 a' i').
   move => neqbj' sma' dmc3' smbj' c_in_stb obs_skmn.
   apply (Game8_accepted_r _ _ _ _ _ b'' j' stb' c1' c2' c3') => //.
   + by rewrite get_set_neqE.
-  + smt(get_setE).  
+  + smt(get_setE).
   by case (inv2 c3'); smt(get_setE).
 move => r id1 id2 c1' c2' c3' k smb' dmc3' skm_k ids_eq.
 apply (Game8_observed _ _ _ _ _ r id1 id2 c1' c2' c3' k) => //.
@@ -1537,7 +1537,7 @@ case (inv2 c).
 + move => ndm1 ndm2 ndm3.
   exact (Game8_dm_undef _ _ _).
 
-+ move => a' b' i'. 
++ move => a' b' i'.
   case ((a', i') = (a, i){m}) => />.
   + rewrite smai => />.
     move => dmc eq_c uniq.
@@ -1572,7 +1572,7 @@ smt(get_setE).
 smt(get_setE).
 
 case (inv1 a{m} i{m}); rewrite smai //=.
-move => /> b j stbj c1 c2 c3 !->> dmc3 smbj trace_stbj obs_skm. 
+move => /> b j stbj c1 c2 c3 !->> dmc3 smbj trace_stbj obs_skm.
 do! split.
 
 (* State Map invariant *)
@@ -1618,16 +1618,16 @@ case (inv1 a' i').
   case (c2' = c2); 2: smt().
   case (c1' = c1); 2: smt().
   move => />.
-  case (inv2 c3); 1..3: smt(). 
-  case (inv2 c2); 1,2,4: smt(). 
-  smt().  
+  case (inv2 c3); 1..3: smt().
+  case (inv2 c2); 1,2,4: smt().
+  smt().
 + move => b' j' stb c1' c2' c3' sma' dmc3' smbj' c_in_stb obs_sk.
   apply (Game8_accepted_r _ _ _ _ _ b' j' stb c1' c2' c3') => //.
   + by rewrite get_set_neqE.
-  + smt(get_setE).  
-  case (inv2 c3); 1..3: smt(). 
-  case (inv2 c2); 1,2,4: smt(). 
-  smt(mem_set).  
+  + smt(get_setE).
+  case (inv2 c3); 1..3: smt().
+  case (inv2 c2); 1,2,4: smt().
+  smt(mem_set).
 move => r id1 id2 c1' c2' c3' k smb' dmc3' skm_k ids_eq.
 apply (Game8_observed _ _ _ _ _ r id1 id2 c1' c2' c3' k) => //.
 + by rewrite get_set_neqE.
@@ -1641,7 +1641,7 @@ case (inv2 c).
 + move => ndm1 ndm2 ndm3.
   exact (Game8_dm_undef _ _ _).
 
-+ move => a' b' i' st' dmc smai' c_in_st' uniq. 
++ move => a' b' i' st' dmc smai' c_in_st' uniq.
   apply (Game8_dm_m1 _ _ _ a' b' i' st') => //.
   + smt(get_setE).
   smt(get_setE).
@@ -1649,13 +1649,13 @@ case (inv2 c).
 + move => a' b' j' st' c1'.
   case ((b', j') = (a, i){m}).
   + move => /> *.
-    apply (Game8_dm_m2 _ _ _ a' a{m} i{m} (Observed ((b, c1), c2, c3) k{m}) c1') => //.   
+    apply (Game8_dm_m2 _ _ _ a' a{m} i{m} (Observed ((b, c1), c2, c3) k{m}) c1') => //.
     + smt(get_setE).
     + smt(get_setE).
     + smt(get_setE).
     smt(get_setE).
   move => neq' dmc1' dmc smbj' c1_in_st c_in_st uniq.
-  apply (Game8_dm_m2 _ _ _ a' b' j' st' c1') => //.   
+  apply (Game8_dm_m2 _ _ _ a' b' j' st' c1') => //.
   + smt(get_setE).
   smt(get_setE).
 
@@ -1716,7 +1716,7 @@ qed.
 
 hoare GAKEb_inv_gen_pskey: GAKEb(NSL).gen_pskey:
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
-==> 
+==>
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
@@ -1724,7 +1724,7 @@ if => //.
 auto => />.
 move => &m inv abnin pk _ a' i'.
 case: (inv a' i') =>
-[ 
+[
 smbj
 | r smbj
 | b na c1 kab smbj pskcb
@@ -1735,13 +1735,13 @@ smbj
 + exact GAKEb_undef.
 + exact (GAKEb_aborted _ _ _ _ r).
 + apply (GAKEb_ipending _ _ _ _ b na c1 kab) => //.
-  smt(get_setE).  
+  smt(get_setE).
 + apply (GAKEb_rpending _ _ _ _ b na nb c1 c2 kba) => //.
   smt(get_setE).
 + exact (GAKEb_accepted _ _ _ _ r tr k).
 exact (GAKEb_observed _ _ _ _ r tr k).
 qed.
-    
+
 lemma GAKEb_inv_aborted a i b j r st sm pm: GAKEb_inv sm pm a i => GAKEb_inv sm.[(b, j) <- (r, Aborted st)] pm a i.
 proof.
 move=> inv.
@@ -1753,7 +1753,7 @@ qed.
 
 hoare GAKEb_inv_send_msg1: GAKEb(NSL).send_msg1:
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
-==> 
+==>
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proc; inline *.
 sp; if => //.
@@ -1764,10 +1764,10 @@ case ((a', i') = (a, i){m}) => /> => [|neq_ai].
   exact some_oget.
 exact /GAKEb_inv_neq/inv.
 qed.
-    
+
 hoare GAKEb_inv_send_msg2: GAKEb(NSL).send_msg2:
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
-==> 
+==>
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
@@ -1788,7 +1788,7 @@ qed.
 
 hoare GAKEb_inv_send_msg3: GAKEb(NSL).send_msg3:
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
-==> 
+==>
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
@@ -1809,7 +1809,7 @@ qed.
 
 hoare GAKEb_inv_send_fin: GAKEb(NSL).send_fin:
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
-==> 
+==>
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
@@ -1824,13 +1824,13 @@ auto => /> &m decn st inv bjin a' i'.
 case ((a', i') = (b, j){m}) => /> => [|neq_ai].
 + rewrite /get_as_Some //=.
   apply (GAKEb_accepted _ _ _ _ Responder (m1{m}, m2{m}, m3{m}) (prf (na{m}, nb{m}) (a{m}, b{m}))).
-  by rewrite get_set_sameE. 
+  by rewrite get_set_sameE.
 exact /GAKEb_inv_neq/inv.
 qed.
 
-hoare GAKEb_inv_rev_skey: GAKEb(NSL).rev_skey:
+hoare GAKEb_inv_reveal: GAKEb(NSL).reveal:
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
-==> 
+==>
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
@@ -1845,7 +1845,7 @@ qed.
 
 hoare GAKEb_inv_test: GAKEb(NSL).test:
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i)
-==> 
+==>
     (forall a i, GAKEb_inv GAKEb.state_map GAKEb.psk_map a i).
 proof.
 proc; inline *.
@@ -1890,7 +1890,7 @@ Game1_inv sm psk c j =>
 Game1_inv sm.[(a, i) <- v] psk c j.
 proof.
 move=> neq
-[ 
+[
 smbj
 | r st smbj
 | b na c1 kab smbj pskcb
@@ -1923,7 +1923,7 @@ qed.
 
 hoare Game1_inv_gen_pskey: Game1.gen_pskey:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
@@ -1931,7 +1931,7 @@ wp; if => //.
 auto => />.
 move => &m inv abnin pk _ a' i'.
 case: (inv a' i') =>
-[ 
+[
 smbj
 | r smbj
 | b na c1 kab smbj pskcb
@@ -1948,10 +1948,10 @@ smbj
 + exact (Game1_accepted _ _ _ _ r tr k).
 exact (Game1_observed _ _ _ _ r tr k).
 qed.
-    
+
 hoare Game1_inv_send_msg1: Game1.send_msg1:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
@@ -1962,10 +1962,10 @@ case ((a', i') = (a, i){m}) => [[] <<- <-|neq_ai].
   by rewrite get_set_sameE.
 exact /Game1_inv_neq/inv.
 qed.
-    
+
 hoare Game1_inv_send_msg2: Game1.send_msg2:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
@@ -1983,7 +1983,7 @@ qed.
 
 hoare Game1_inv_send_msg3: Game1.send_msg3:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
@@ -2002,7 +2002,7 @@ qed.
 
 hoare Game1_inv_send_fin: Game1.send_fin:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
@@ -2015,13 +2015,13 @@ auto => /> &m decn st inv bjin a' i'.
 case ((a', i') = (b, j){m}) => [<-|neq_ai].
 + rewrite /get_as_Some //=.
   apply (Game1_accepted _ _ _ _ Responder ((a, ca){m}, cb{m}, m3{m}) (prf (na{m}, nb{m}) (a{m}, b{m}))).
-  by rewrite get_set_sameE. 
+  by rewrite get_set_sameE.
 exact /Game1_inv_neq/inv.
 qed.
 
-hoare Game1_inv_rev_skey: Game1.rev_skey:
+hoare Game1_inv_reveal: Game1.reveal:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
@@ -2036,7 +2036,7 @@ qed.
 
 hoare Game1_inv_test: Game1.test:
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game1.state_map Game1.psk_map a i).
 proof.
 proc; inline *.
@@ -2061,7 +2061,7 @@ qed.
 
 hoare Game2_inv_gen_pskey: Game2.gen_pskey:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 have t: equiv[Game2.gen_pskey ~ Game1.gen_pskey: ={arg} /\ ={state_map, psk_map}(Game2, Game1) ==> ={state_map, psk_map}(Game2, Game1)] by sim />.
@@ -2070,7 +2070,7 @@ qed.
 
 hoare Game2_inv_send_msg1: Game2.send_msg1:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 proc; inline *.
@@ -2081,10 +2081,10 @@ case ((a', i') = (a, i){m}) => [[] <<- <- |neq_ai].
   by rewrite get_set_sameE.
 exact /Game1_inv_neq/inv.
 qed.
-    
+
 hoare Game2_inv_send_msg2: Game2.send_msg2:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 proc; inline *.
@@ -2102,7 +2102,7 @@ qed.
 
 hoare Game2_inv_send_msg3: Game2.send_msg3:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 proc; inline *.
@@ -2115,13 +2115,13 @@ auto => /> &m decn st inv aiin ca0 _ n cin a' i'.
 case ((a', i') = (a, i){m}) => [[] <<- <-|neq_ai].
 + rewrite /get_as_Some //=.
   apply (Game1_accepted _ _ _ _ Initiator ((a', ca{m}), m2{m}, ca0) (prf (na{m}, nb{m}) (a', b{m}))).
-  by rewrite get_set_sameE. 
+  by rewrite get_set_sameE.
 exact /Game1_inv_neq/inv.
 qed.
 
 hoare Game2_inv_send_fin: Game2.send_fin:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 proc; inline *.
@@ -2138,18 +2138,18 @@ case ((a', i') = (b, j){m}) => [[] <<- <-|neq_ai].
 exact /Game1_inv_neq/inv.
 qed.
 
-hoare Game2_inv_rev_skey: Game2.rev_skey:
+hoare Game2_inv_reveal: Game2.reveal:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
-have t: equiv[Game2.rev_skey ~ Game1.rev_skey: ={arg} /\ ={state_map, psk_map}(Game2, Game1) ==> ={state_map, psk_map}(Game2, Game1)] by sim />.
-by conseq t Game1_inv_rev_skey => /#.
+have t: equiv[Game2.reveal ~ Game1.reveal: ={arg} /\ ={state_map, psk_map}(Game2, Game1) ==> ={state_map, psk_map}(Game2, Game1)] by sim />.
+by conseq t Game1_inv_reveal => /#.
 qed.
 
 hoare Game2_inv_test: Game2.test:
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i)
-==> 
+==>
     (forall a i, Game1_inv Game2.state_map Game2.psk_map a i).
 proof.
 have t: equiv[Game2.test ~ Game1.test: ={arg} /\ ={b0, state_map, psk_map}(Game2, Game1) ==> ={b0, state_map, psk_map}(Game2, Game1)] by sim />.
@@ -2158,7 +2158,7 @@ qed.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Game 3 invariants *)
-inductive Game3_inv 
+inductive Game3_inv
   (sm: (id * int, role * instance_state) fmap)
   (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
   (a: id) (i: int)
@@ -2185,7 +2185,7 @@ Game3_inv sm dm c j =>
 Game3_inv sm.[(a, i) <- v] dm c j.
 proof.
 move=> neq
-[ 
+[
   smbj
 | r st smbj
 | b na c1 kab smbj dmcb
@@ -2213,7 +2213,7 @@ Game3_inv sm dm a i =>
 forall pk ad, Game3_inv sm dm.[(pk, ad, c) <- n] a i.
 proof.
 move=> neq
-[ 
+[
   smbj pk ad
 | r st smbj pk ad
 | b na c1 kab smbj dmcb pk ad
@@ -2224,10 +2224,10 @@ move=> neq
 + exact Game3_undef.
 + exact (Game3_aborted _ _ _ _ r st).
 + apply (Game3_ipending _ _ _ _ b na c1 kab) => //.
-  smt(get_setE).  
+  smt(get_setE).
 + apply (Game3_rpending _ _ _ _ b na nb c1 c2 kba)=> //.
-  + smt(get_setE).  
-  smt(get_setE).  
+  + smt(get_setE).
+  smt(get_setE).
 + exact (Game3_accepted _ _ _ _ r tr k).
 exact (Game3_observed _ _ _ _ r tr k).
 qed.
@@ -2238,22 +2238,22 @@ move=> inv.
 case ((a, i) = (b, j)) => /> => [|neq_ai].
 - apply (Game3_aborted _ _ _ _ r st).
   by rewrite get_set_sameE.
-exact /Game3_inv_neq_sm/inv. 
+exact /Game3_inv_neq_sm/inv.
 qed.
 
 hoare Game3_inv_gen_pskey: Game3.gen_pskey:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i)
-==> 
+==>
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
 wp; if => //.
 by auto.
 qed.
-    
+
 hoare Game3_inv_send_msg1: Game3.send_msg1:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i)
-==> 
+==>
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
@@ -2265,10 +2265,10 @@ case ((a', i') = (a, i){m}) => /> => [|neq_ai].
 + by apply (Game3_ipending _ _ _ _ b{m} na ca{m} witness); rewrite get_set_sameE.
 exact /Game3_inv_neq_sm/Game3_inv_neq_dm/inv.
 qed.
-    
+
 hoare Game3_inv_send_msg2: Game3.send_msg2:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i)
-==> 
+==>
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
@@ -2282,14 +2282,14 @@ auto => /> &m _ decn st inv bjnin abin /negb_or [_ bad] n _ a' i'.
 case ((a', i') = (b, j){m}) => /> => [|neq_ai].
 + apply (Game3_rpending _ _ _ _ a{m} na{m} n ca{m} cb{m} witness).
   - by rewrite get_set_sameE.
-  - by rewrite get_set_neqE //= decn. 
+  - by rewrite get_set_neqE //= decn.
   by rewrite get_set_sameE.
 exact /Game3_inv_neq_sm/Game3_inv_neq_dm/inv.
 qed.
 
 hoare Game3_inv_send_msg3: Game3.send_msg3:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i)
-==> 
+==>
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
@@ -2309,7 +2309,7 @@ qed.
 
 hoare Game3_inv_send_fin: Game3.send_fin:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i)
-==> 
+==>
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
@@ -2321,13 +2321,13 @@ sp; match.
 auto => /> &m decn st inv bjin a' i'.
 case ((a', i') = (b, j){m}) => /> => [|neq_ai].
 + apply (Game3_accepted _ _ _ _ Responder ((a, ca){m}, cb{m}, m3{m}) (prf (na{m}, nb{m}) (a{m}, b{m}))).
-  by rewrite get_set_sameE. 
+  by rewrite get_set_sameE.
 exact /Game3_inv_neq_sm/inv.
 qed.
 
-hoare Game3_inv_rev_skey: Game3.rev_skey:
+hoare Game3_inv_reveal: Game3.reveal:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i)
-==> 
+==>
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
@@ -2342,7 +2342,7 @@ qed.
 
 hoare Game3_inv_test: Game3.test:
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i)
-==> 
+==>
     (forall a i, Game3_inv Game3.state_map Game3.dec_map a i).
 proof.
 proc; inline *.
@@ -2364,7 +2364,7 @@ qed.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Game 5 invariants *)
-inductive Game5_inv 
+inductive Game5_inv
   (sm: (id * int, role * instance_state) fmap)
   (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
   (nm : (msg_data * ctxt, nonce * nonce) fmap)
@@ -2384,13 +2384,13 @@ inductive Game5_inv
     (sm.[a, i] = Some (r, Accepted tr k))
 | Game5_observed r tr k of
     (sm.[a, i] = Some (r, Observed tr k)).
-   
+
 op Game5_inv_full
   (sm: (id * int, role * instance_state) fmap)
   (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
   (nm : (msg_data * ctxt, nonce * nonce) fmap)
 =
-  ((forall a i j b c, 
+  ((forall a i j b c,
        sm.[(a, i)] = Some (Initiator, IPending (b, witness, witness, c) (a, c))
     /\ sm.[(a, j)] = Some (Initiator, IPending (b, witness, witness, c) (a, c))
     => i = j)
@@ -2405,7 +2405,7 @@ Game5_inv sm dm nm c j =>
 Game5_inv sm.[(a, i) <- v] dm nm c j.
 proof.
 move=> neq
-[ 
+[
   smbj
 | r st smbj
 | b c1 smbj
@@ -2433,7 +2433,7 @@ Game5_inv sm dm nm a i =>
 forall pk ad, Game5_inv sm dm.[(pk, ad, m) <- witness] nm a i.
 proof.
 move=> neq
-[ 
+[
   smbj
 | r st smbj
 | b c1 smbj v1 v2
@@ -2444,7 +2444,7 @@ move=> neq
 + exact Game5_undef.
 + exact (Game5_aborted _ _ _ _ _ r st).
 + apply (Game5_ipending _ _ _ _ _ b c1) => //.
-  by rewrite mem_set v1.  
+  by rewrite mem_set v1.
 + exact (Game5_rpending _ _ _ _ _ b c1 c2).
 + exact (Game5_accepted _ _ _ _  _ r tr k).
 exact (Game5_observed _ _ _ _ _ r tr k).
@@ -2456,7 +2456,7 @@ move=> inv.
 case ((a, i) = (b, j)) => /> => [|neq_ai].
 - apply (Game5_aborted _ _ _ _ _ r st).
   by rewrite get_set_sameE.
-exact /Game5_inv_neq_sm/inv. 
+exact /Game5_inv_neq_sm/inv.
 qed.
 
 hoare Game5_inv_send_msg1: Game5.send_msg1:
@@ -2514,7 +2514,7 @@ split; 1: smt(mem_set get_setE).
 move=> b j.
 case: ((b, j) = (b, j){!m}) => /> => [|neq_ai].
 - apply (Game5_rpending _ _ _ _ _ a{m} ca{m} cb{m}).
-  by rewrite get_set_sameE. 
+  by rewrite get_set_sameE.
 exact /Game5_inv_neq_sm/Game5_inv_neq_dm/inv5.
 qed.
 
@@ -2540,10 +2540,10 @@ split; 1: smt(mem_set get_setE).
 move=> a' i'.
 case: ((a', i') = (a, i){m}) => /> => [|neq_ai].
 - apply (Game5_accepted _ _ _ _ _ Initiator ((a, ca), m2, caf){m} (prf (ns.`1, ns.`2) (a, b)){!m}).
-  by rewrite get_set_sameE. 
+  by rewrite get_set_sameE.
 apply /Game5_inv_neq_sm/Game5_inv_neq_dm => //=.
 case: (inv5 a' i') =>
-[ 
+[
   smai
 | r smai
 | b c1 smai' v1 v2
@@ -2584,11 +2584,11 @@ split; 1: smt(get_setE).
 move=> b' j'.
 case ((b', j') = (b, j){m}) => /> => [|neq_bj].
 - apply (Game5_accepted _ _ _ _ _ Responder ((a, ca), cb, m3){m} (prf (oget Game5.prfkey_map{m}.[(msg3_data a{m} b{m} ca{m} cb{m}, m3{m})]) (a, b)){m}).
-  by rewrite get_set_sameE. 
-exact /Game5_inv_neq_sm/inv5. 
+  by rewrite get_set_sameE.
+exact /Game5_inv_neq_sm/inv5.
 qed.
 
-hoare Game5_inv_rev_skey: Game5.rev_skey:
+hoare Game5_inv_reveal: Game5.reveal:
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map)
   ==>
   (Game5_inv_full Game5.state_map Game5.dec_map Game5.prfkey_map).

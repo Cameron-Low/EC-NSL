@@ -37,7 +37,7 @@ module GAEADb = {
       psk_map.[h] <- k;
     }
   }
-  
+
   proc ex(h: handle) : bool = {
     return h \in psk_map;
   }
@@ -45,7 +45,7 @@ module GAEADb = {
 
 module GAEAD0 : GAEAD_out_i = {
   include var GAEADb
-  
+
   proc init_mem() = {
     psk_map <- empty;
   }
@@ -114,9 +114,9 @@ module E_GAEAD (O : GAEAD_out_i) (A : A_GAEAD) = {
     var b : bool;
 
     O.init_mem();
-    
+
     b <@ A(O).run(x);
-    
+
     return b;
   }
 }.

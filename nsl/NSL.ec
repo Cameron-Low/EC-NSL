@@ -40,7 +40,7 @@ clone import GAKE as GAKEc with
   type rstate <- rstate,
   op dkey <- dskey,
   op dpskey <- dpskey.
-  
+
 clone import Aead as AEADc with
   type handle  <- ids,
   type d_in_t  <- bool,
@@ -55,12 +55,12 @@ clone import Aead as AEADc with
     axiom correctness <- correctness
 proof *.
 
-clone import PRF as PRFc with 
+clone import PRF as PRFc with
   type handle <- msg_data * ctxt,
   type d_in_t <- bool,
   type key    <- nonce * nonce,
   type D      <- ids,
-  type R      <- skey, 
+  type R      <- skey,
   op   dkey   <- dnonce `*` dnonce,
   op   dR _   <- dskey,
   op   f      <- prf

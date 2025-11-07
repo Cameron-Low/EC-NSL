@@ -43,27 +43,22 @@ with s = IPending _ _   => false
 with s = RPending _ _ _ => false
 with s = Aborted _      => false.
 
-(* Get all trace-sharing instances *)
-op get_ts_instances t (fmap : ('a, 'b * _) fmap) =
-  fdom (filter (fun _ x=> (get_trace \o snd) x = Some t) fmap).
-
 (* Get all partners of the given instance *)
-op get_partners ai t r (fmap: (id * int, role * instance_state) fmap) =
+op get_partners t r (smap: (id * int, role * instance_state) fmap) =
 fdom (
   filter
   (fun bj (val: role * instance_state) =>
-        bj <> ai            (* We cannot be our own partner *)
-    /\ get_trace val.`2 = t (* Partners share the same trace *)
+       get_trace val.`2 = t (* Partners share the same trace *)
     /\ val.`1 <> r          (* Partners must have opposite roles *)
     /\ t <> None            (* We must be accepted *)
   )
-  fmap
+  smap
 ).
 
-op get_observed_partners ai  (fmap : (id * int, role * instance_state) fmap) =
+op get_observed_partners ai  (smap : (id * int, role * instance_state) fmap) =
   filter
-    (fun bj => oapp (is_observed \o snd) false fmap.[bj])
-    (get_partners ai (get_trace (oget fmap.[ai]).`2) (oget fmap.[ai]).`1 fmap).
+    (fun bj => oapp (is_observed \o snd) false smap.[bj])
+    (get_partners (get_trace (oget smap.[ai]).`2) (oget smap.[ai]).`1 smap).
 
 
 (********************************************************************************)
@@ -78,7 +73,7 @@ module type AKE_Scheme = {
 
 
 (********************************************************************************)
-(* WAKE package and games *)
+(* AKE package and games *)
 
 module type GAKE_out = {
   (* Public key generation *)
@@ -91,12 +86,12 @@ module type GAKE_out = {
   proc send_fin(b: id, j: int, m3: msg) : unit option
 
   (* Get a session key *)
-  proc rev_skey(a: id, i: int) : key option
+  proc reveal(a: id, i: int) : key option
   proc test(a: id, i: int) : key option
 }.
 
 module type GAKE_out_i = {
-  include GAKE_out 
+  include GAKE_out
 
   proc init_mem(b: bool) : unit
 }.
@@ -197,7 +192,7 @@ module GAKEb (P : AKE_Scheme) = {
     return r;
   }
 
-  proc rev_skey(a: id, i: int) : key option = {
+  proc reveal(a: id, i: int) : key option = {
     var role, st, ps, k;
     var ko <- None;
 
@@ -212,7 +207,7 @@ module GAKEb (P : AKE_Scheme) = {
           ko <- Some k;
           state_map.[(a, i)] <- (role, Observed trace k);
         }
-        
+
       }
       | Observed _ _   => { }
       | IPending _ _   => { }
@@ -266,9 +261,9 @@ module E_GAKE (O : GAKE_out_i) (A : A_GAKE) = {
     var b' : bool;
 
     O.init_mem(b);
-    
+
     b' <@ A(O).run();
-    
+
     return b';
   }
 }.

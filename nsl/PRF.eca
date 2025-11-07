@@ -36,7 +36,7 @@ module PRF0 : GPRF_out_i = {
   proc init_mem() = {
     prfkey_map <- empty;
   }
-  
+
   proc f(h, x) = {
     var r <- None;
     if (prfkey_map.[h] is Some k) {
@@ -81,9 +81,9 @@ module E_GPRF (O : GPRF_out_i) (A : A_GPRF) = {
     var b : bool;
 
     O.init_mem();
-    
+
     b <@ A(O).run(x);
-    
+
     return b;
   }
 }.
