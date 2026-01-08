@@ -25,7 +25,7 @@ jobs:
       name: Checkout EasyCrypt
       with:
         repository: EasyCrypt/easycrypt
-        ref: refs/tags/r2025.08
+        ref: refs/tags/r2025.11
         path: easycrypt
     - name: Update OPAM & EasyCrypt dependencies
       run: |

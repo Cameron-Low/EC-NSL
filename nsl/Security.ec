@@ -737,7 +737,7 @@ do! congr.
     match Some {2} ^match.
     + auto=> />.
       move=> &hr smr sml invl bj_in.
-      by case: (invl b{m0} j{m0})=> /#.
+      by case: (invl b{1} j{1})=> /#.
     by sp; match =; auto=> /> /#.
 
   - conseq (: ={res}
