@@ -31,6 +31,7 @@ jobs:
       run: |
         opam update
         opam pin add -n easycrypt easycrypt
+        opam install --deps-only --depext-only --confirm-level=unsafe-yes easycrypt
         opam install --deps-only easycrypt
     - name: Compile & Install EasyCrypt
       run: opam install easycrypt
