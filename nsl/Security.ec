@@ -1853,8 +1853,9 @@ proc; inline.
 call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
      /\ !Game8.b0{1} /\ Game8.b0{2}
      /\ (forall h, h \in Game8.sk_map{1} <=> h \in Game8.sk_map{2})
-     /\ (Game8_inv_full Game8.state_map Game8.dec_map Game8.sk_map){1}
+     /\ (Game8_inv Game8.state_map Game8.dec_map Game8.sk_map){1}
 ).
+
 - by sim />.
 
 - conseq (: ={res}
@@ -1903,45 +1904,21 @@ call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
     smt(get_setE).
   exfalso.
   move => &1 &2 [#] />.
-  move => osmai _ _ _ inv1 inv2 inv3 inv4 inv5 ? card_obs_ps.
-  have smai : Game8.state_map.[a, i]{2} = Some (role{2}, Accepted tr k') by smt().
-  case (inv2 a{2} i{2}); rewrite smai //.
-  + move => />.
-    move => b j stb c1 c2 c3 !->> dmc3 smbj.
-    case (inv2 b j); rewrite smbj //.
-    move => />.
-    move => id1 id2 c1' c2' c3' k'.
-    move => ->>.
-    case (inv3 c3'); 1..3: smt().
-    case (c1' = c1); 2: smt().
-    case (c2' = c2); 2: smt().
-    case (c3' = c3); 2: smt().
-    case (id1 = a{2}); 2: smt().
-    move => />.
-    have bj_partner : (b, j) \in get_partners (Some ((a{2}, c1), c2, c3)) Initiator Game8.state_map{2}.
-    + rewrite /get_partners mem_fdom mem_filter /#.
-    have // : (b, j) \in get_observed_partners (a, i){2} Game8.state_map{2}.
-    + rewrite /get_observed_partners in_filter /#.
-    rewrite fcard_eq0 in card_obs_ps.
-    by rewrite card_obs_ps in_fset0.
-  move => />.
-  move => b j stb c1 c2 c3 !->> dmc3 smbj.
-  case (inv2 b j); rewrite smbj //.
-  move => />.
-  move => id1 id2 c1' c2' c3' k'.
-  move => ->>.
-  case (inv3 c3'); 1..3: smt().
-  case (c1' = c1); 2: smt().
-  case (c2' = c2); 2: smt().
-  case (c3' = c3); 2: smt().
-  case (id1 = b); 2: smt().
-  move => />.
-  have bj_partner : (b, j) \in get_partners (Some ((b, c1), c2, c3)) Responder Game8.state_map{2}.
+  move => smai2 smai1 _ _. 
+  move => _ uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps.
+  case (tr \in Game8.sk_map{1}) => // ^ tr_in_skm.
+  move => /(sk_obs tr) [a' i' r sk smai'].
+  have := uniq_comp tr (a, i){2} (a', i') role{1} (Accepted tr k') (Observed tr sk).
+  have -> : Game8.state_map{2}.[a{2}, i{2}] = Some (role{1}, Accepted tr k') by smt().
+  rewrite smai' some_oget //=.
+  case (r = role{1}) => //.
+  move => neq_role.
+  have bj_partner : (a', i') \in get_partners (Some tr) role{1} Game8.state_map{2}.
   + rewrite /get_partners mem_fdom mem_filter /#.
-  have // : (b, j) \in get_observed_partners (a, i){2} Game8.state_map{2}.
+  have // : (a', i') \in get_observed_partners (a, i){2} Game8.state_map{2}.
   + rewrite /get_observed_partners in_filter /#.
-  rewrite fcard_eq0 in card_obs_ps.
-  by rewrite card_obs_ps in_fset0.
+  rewrite fcard_eq0 in obs_ps.
+  by rewrite obs_ps in_fset0.
 
 - conseq (: ={res}
      /\ ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
@@ -1963,63 +1940,24 @@ call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
     smt(get_setE).
   exfalso.
   move => &1 &2 [#] />.
-  move => osmai _ _ _ inv1 inv2 inv3 inv4 inv5 ? card_obs_ps.
-  have smai : Game8.state_map.[a, i]{2} = Some (role{2}, Accepted tr k') by smt().
-  case (inv2 a{2} i{2}); rewrite smai //.
-  + move => />.
-    move => b j stb c1 c2 c3 !->> dmc3 smbj.
-    case (inv2 b j); rewrite smbj //.
-    move => />.
-    move => id1 id2 c1' c2' c3' k'.
-    move => ->>.
-    case (inv3 c3'); 1..3: smt().
-    case (c1' = c1); 2: smt().
-    case (c2' = c2); 2: smt().
-    case (c3' = c3); 2: smt().
-    case (id1 = a{2}); 2: smt().
-    move => />.
-    have bj_partner : (b, j) \in get_partners (Some ((a{2}, c1), c2, c3)) Initiator Game8.state_map{2}.
-    + rewrite /get_partners mem_fdom mem_filter /#.
-    have // : (b, j) \in get_observed_partners (a, i){2} Game8.state_map{2}.
-    + rewrite /get_observed_partners in_filter /#.
-    rewrite fcard_eq0 in card_obs_ps.
-    by rewrite card_obs_ps in_fset0.
-  move => />.
-  move => b j stb c1 c2 c3 !->> dmc3 smbj.
-  case (inv2 b j); rewrite smbj //.
-  move => />.
-  move => id1 id2 c1' c2' c3' k'.
-  move => ->>.
-  case (inv3 c3'); 1..3: smt().
-  case (c1' = c1); 2: smt().
-  case (c2' = c2); 2: smt().
-  case (c3' = c3); 2: smt().
-  case (id1 = b); 2: smt().
-  move => />.
-  have bj_partner : (b, j) \in get_partners (Some ((b, c1), c2, c3)) Responder Game8.state_map{2}.
+  move => smai2 smai1 _ _. 
+  move => _ uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps.
+  case (tr \in Game8.sk_map{1}) => // ^ tr_in_skm.
+  move => /(sk_obs tr) [a' i' r sk smai'].
+  have := uniq_comp tr (a, i){2} (a', i') role{1} (Accepted tr k') (Observed tr sk).
+  have -> : Game8.state_map{2}.[a{2}, i{2}] = Some (role{1}, Accepted tr k') by smt().
+  rewrite smai' some_oget //=.
+  case (r = role{1}) => //.
+  move => neq_role.
+  have bj_partner : (a', i') \in get_partners (Some tr) role{1} Game8.state_map{2}.
   + rewrite /get_partners mem_fdom mem_filter /#.
-  have // : (b, j) \in get_observed_partners (a, i){2} Game8.state_map{2}.
+  have // : (a', i') \in get_observed_partners (a, i){2} Game8.state_map{2}.
   + rewrite /get_observed_partners in_filter /#.
-  rewrite fcard_eq0 in card_obs_ps.
-  by rewrite card_obs_ps in_fset0.
+  rewrite fcard_eq0 in obs_ps.
+  by rewrite obs_ps in_fset0.
 
 auto => />.
-do! split.
-+ move => a i.
-  apply (Game8_undef).
-  exact emptyE.
-+ move => c.
-  apply (Game8_dm_undef).
-  + move => a b.
-    apply mem_empty.
-  + move => a b c1.
-    by rewrite mem_empty.
-  + move => a b c1 c2.
-    by rewrite mem_empty.
-  move => pk ad pk' ad' c .
-  by rewrite mem_empty.
-move => a b c1 c2.
-by rewrite mem_empty.
+smt(emptyE mem_empty).
 qed.
 
 
