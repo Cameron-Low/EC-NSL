@@ -12,11 +12,6 @@ type role = [
 ].
 
 type trace = (id * msg) * msg * msg.
-type abort_state = [
-| R1
-| I of msg
-| R2 of msg & msg
-].
 
 (* Represents an instance state in the protocol *)
 type instance_state = [
@@ -24,7 +19,7 @@ type instance_state = [
 | RPending of rstate & (id * msg) & msg
 | Accepted of trace & key
 | Observed of trace & key
-| Aborted  of abort_state
+| Aborted
 ].
 
 (* Return the trace from an accepted state *)
@@ -33,7 +28,7 @@ with s = Accepted t _   => Some t
 with s = Observed t _   => Some t
 with s = IPending _ _   => None
 with s = RPending _ _ _ => None
-with s = Aborted  _     => None.
+with s = Aborted        => None.
 
 (* Decide if an instance has been revelaed *)
 op is_observed s : bool =
@@ -41,7 +36,7 @@ with s = Observed _ _   => true
 with s = Accepted _ _   => false
 with s = IPending _ _   => false
 with s = RPending _ _ _ => false
-with s = Aborted _      => false.
+with s = Aborted        => false.
 
 (* Get all partners of the given instance *)
 op get_partners t r (smap: (id * int, role * instance_state) fmap) =
@@ -140,7 +135,7 @@ module GAKEb (P : AKE_Scheme) = {
       psk <- oget psk_map.[(a, b)];
       resp <@ P.msg2(b, m1, psk);
       match resp with
-      | None => state_map.[(b, j)] <- (Responder, Aborted R1);
+      | None => state_map.[(b, j)] <- (Responder, Aborted);
       | Some val => {
         (m2, s) <- val;
         state_map.[(b, j)] <- (Responder, RPending s m1 m2);
@@ -160,7 +155,7 @@ module GAKEb (P : AKE_Scheme) = {
       if (st is IPending s m1) {
         resp <@ P.msg3(a, s, m2);
         match resp with
-        | None => state_map.[(a, i)] <- (Initiator, Aborted (I m1.`2));
+        | None => state_map.[(a, i)] <- (Initiator, Aborted);
         | Some val => {
           (m3, key) <- val;
           state_map.[(a, i)] <- (Initiator, Accepted (m1, m2, m3) key);
@@ -181,7 +176,7 @@ module GAKEb (P : AKE_Scheme) = {
       if (st is RPending s m1 m2) {
         resp <@ P.fin(b, s, m3);
         match resp with
-        | None => state_map.[(b, j)] <- (Responder, Aborted (R2 m1.`2 m2));
+        | None => state_map.[(b, j)] <- (Responder, Aborted);
         | Some key => {
           state_map.[(b, j)] <- (Responder, Accepted (m1, m2, m3) key);
           r <- Some ();
@@ -212,7 +207,7 @@ module GAKEb (P : AKE_Scheme) = {
       | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | Aborted  _     => { }
+      | Aborted        => { }
       end;
     }
     return ko;
@@ -241,7 +236,7 @@ module GAKEb (P : AKE_Scheme) = {
       | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | Aborted  _     => { }
+      | Aborted        => { }
       end;
     }
     return ko;

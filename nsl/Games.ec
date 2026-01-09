@@ -52,7 +52,7 @@ module Game1 = {
         mo <- Some cb;
         state_map.[(b, j)] <- (Responder, RPending (a, witness, na, nb, ca, oget mo) m1 (oget mo));
       } else {
-        state_map.[(b, j)] <- (Responder, Aborted R1);
+        state_map.[(b, j)] <- (Responder, Aborted);
       }
     }
     return mo;
@@ -73,7 +73,7 @@ module Game1 = {
           skey <- prf (na, nb) (a, b);
           state_map.[(a, i)] <- (Initiator, Accepted ((a, ca), m2, oget mo) skey);
          } else {
-          state_map.[(a, i)] <- (Initiator, Aborted (I ca));
+          state_map.[(a, i)] <- (Initiator, Aborted);
         }
       }
     }
@@ -93,7 +93,7 @@ module Game1 = {
           state_map.[(b, j)] <- (Responder, Accepted ((a, ca), cb, m3) skey);
           mo <- Some ();
         } else {
-          state_map.[(b, j)] <- (Responder, Aborted (R2 ca cb));
+          state_map.[(b, j)] <- (Responder, Aborted);
         }
       }
     }
@@ -118,7 +118,7 @@ module Game1 = {
       | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | Aborted  _     => { }
+      | Aborted        => { }
       end;
     }
     return ko;
@@ -146,7 +146,7 @@ module Game1 = {
       | Observed _ _   => { }
       | IPending _ _   => { }
       | RPending _ _ _ => { }
-      | Aborted  _     => { }
+      | Aborted        => { }
       end;
     }
     return ko;
@@ -882,7 +882,7 @@ with s = IPending _ m1   => Some m1.`2
 with s = RPending _ m1 m2 => Some m1.`2
 with s = Accepted t _   => Some t.`1.`2
 with s = Observed t _   => Some t.`1.`2
-with s = Aborted v  => None.
+with s = Aborted    => None.
 
 (* Return the second sent message from a state *)
 op snd_msg s : ctxt option =
@@ -890,7 +890,7 @@ with s = IPending _ m1   => None
 with s = RPending _ m1 m2 => Some m2
 with s = Accepted t _   => Some t.`2
 with s = Observed t _   => Some t.`2
-with s = Aborted v  => None.
+with s = Aborted    => None.
 
 op Game8_inv
   (sm: (id * int, role * instance_state) fmap)
@@ -947,10 +947,8 @@ proc.
 sp; wp; if=> //.
 seq 1 : (#pre); 1: by auto.
 auto => />.
-
 move => &m uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs sm psk bad.
-do! split.
-
+do! split; ~1:smt(get_setE).
 move => h h' c r b' psk' na' m1 st'.
 rewrite !get_setE.
 case (h = (a, i){m}).
@@ -960,16 +958,7 @@ case (h' = (a, i){m}) => //.
 + move => />.
   smt(get_setE).
 smt().
-
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
 qed.
-
 
 hoare Game8_inv_send_msg2: Game8.send_msg2:
   Game8_inv Game8.state_map Game8.dec_map Game8.sk_map
@@ -981,24 +970,11 @@ sp; wp; if=> //.
 sp; match => //.
 + auto=> />.
   move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smnin pskin.
-  do! split.
-  
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-
+  do! split; smt(get_setE).
 seq 1 : (#pre); 1: by auto.
 auto => />.
 move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smnin pskin bad.
-do! split.
-
-smt(get_setE).
-
+do! split; ~2: smt(get_setE).
 move => h h' c1 c r b' psk' na' nb' m1' m2 st'.
 rewrite !get_setE.
 case (h = (b, j){m}).
@@ -1008,12 +984,6 @@ case (h' = (b, j){m}) => //.
 + move => />.
   smt(get_setE).
 smt().
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
 qed.
 
 hoare Game8_inv_send_msg3: Game8.send_msg3:
@@ -1027,30 +997,12 @@ sp; match => //.
 sp; match => //.
 + auto => />.
   move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smin.
-  do! split.
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-
+  do! split; smt(get_setE).
 seq 1 : (#pre); 1: by auto.
 sp; if=> //.
 auto=> />.
 move => &m _ dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in /negb_or [_ uniq] nab _.
-do! split.
-
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
+do! split; smt(get_setE).
 qed.
 
 hoare Game8_inv_send_fin: Game8.send_fin:
@@ -1066,20 +1018,12 @@ sp; match => //.
   smt(get_setE).
 auto => />.
 move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in.
-do! split.
-
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
+do! split; ~6:smt(get_setE).
 move => v x r b' m1' m2' m3' sk.
 rewrite get_setE.
 case ((v, x) = (b, j){m}).
 + smt().
 smt().
-smt(get_setE).
-smt(get_setE).
 qed.
 
 hoare Game8_inv_reveal: Game8.reveal:
@@ -1107,19 +1051,9 @@ rcondt ^if.
   + rewrite /get_observed_partners in_filter /#.
   rewrite fcard_eq0 in obs_ps.
   by rewrite obs_ps in_fset0.
-
 auto => />.
 move => &m smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps k _.
-do! split.
-
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
-smt(get_setE).
+do! split; smt(get_setE).
 qed.
 
 hoare Game8_inv_test: Game8.test:
@@ -1147,34 +1081,13 @@ rcondt ^if.
   + rewrite /get_observed_partners in_filter /#.
   rewrite fcard_eq0 in obs_ps.
   by rewrite obs_ps in_fset0.
-
 seq 1 : #pre; 1: by auto => />.
 sp.
-if.
-+ auto => />.
-  move => &m sm smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps.
-  do! split.
-  
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-+ auto => />.
-  move => &m sm smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps _ k _.
-  do! split.
-  
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-  smt(get_setE).
-
+seq 1 : #pre; 1: by auto => />.
+sp.
+auto => />.
+move => &m sm smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps _.
+do! split; ~8: smt(get_setE).
 move => t.
 rewrite mem_set.
 case; smt(get_setE).

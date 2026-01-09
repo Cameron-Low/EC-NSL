@@ -275,7 +275,7 @@ match s with
   let (id, psk, na, nb, ca, cb) = st in RPending (id, witness, na, nb, ca, cb) m1 m2
 | Accepted _ _ => s
 | Observed _ _ => s
-| Aborted _ => s
+| Aborted   => s
 end.
 
 local lemma eq_partners tr r sml smr:
@@ -967,7 +967,7 @@ match s with
   let (id, psk, na, nb, ca, cb) = st in RPending (id, psk, witness, witness, ca, cb) m1 m2
 | Accepted _ _ => s
 | Observed _ _ => s
-| Aborted _ => s
+| Aborted   => s
 end.
 
 local lemma eq_partners_nonces tr r sml smr:
@@ -1564,7 +1564,7 @@ match s with
 | RPending _ _ _ => s
 | Accepted tr k => Accepted tr witness
 | Observed _ _ => s
-| Aborted _ => s
+| Aborted   => s
 end.
 
 local lemma eq_partners_sk tr r sml smr:
