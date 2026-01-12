@@ -1905,13 +1905,13 @@ call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
   exfalso.
   move => &1 &2 [#] />.
   move => smai2 smai1 _ _. 
-  move => _ uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps.
+  move => _ uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps.
   case (tr \in Game8.sk_map{1}) => // ^ tr_in_skm.
   move => /(sk_obs tr) [a' i' r sk smai'].
-  have := uniq_comp tr (a, i){2} (a', i') role{1} (Accepted tr k') (Observed tr sk).
-  have -> : Game8.state_map{2}.[a{2}, i{2}] = Some (role{1}, Accepted tr k') by smt().
-  rewrite smai' some_oget //=.
-  case (r = role{1}) => //.
+  have smai : Game8.state_map{2}.[a{2}, i{2}] = Some (role{1}, Accepted tr k') by smt().
+  case (r = role{1}).
+  + have := uniq_pi tr.`1.`2 r (a, i){2} (Accepted tr k'){m} (a', i') (Observed tr sk).
+    smt().
   move => neq_role.
   have bj_partner : (a', i') \in get_partners (Some tr) role{1} Game8.state_map{2}.
   + rewrite /get_partners mem_fdom mem_filter /#.
@@ -1941,13 +1941,13 @@ call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game8, Game8)
   exfalso.
   move => &1 &2 [#] />.
   move => smai2 smai1 _ _. 
-  move => _ uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps.
+  move => _ uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps.
   case (tr \in Game8.sk_map{1}) => // ^ tr_in_skm.
   move => /(sk_obs tr) [a' i' r sk smai'].
-  have := uniq_comp tr (a, i){2} (a', i') role{1} (Accepted tr k') (Observed tr sk).
-  have -> : Game8.state_map{2}.[a{2}, i{2}] = Some (role{1}, Accepted tr k') by smt().
-  rewrite smai' some_oget //=.
-  case (r = role{1}) => //.
+  have smai: Game8.state_map{2}.[a{2}, i{2}] = Some (role{1}, Accepted tr k') by smt().
+  case (r = role{1}).
+  + have := uniq_pi tr.`1.`2 r (a, i){2} (Accepted tr k'){m} (a', i') (Observed tr sk).
+    smt().
   move => neq_role.
   have bj_partner : (a', i') \in get_partners (Some tr) role{1} Game8.state_map{2}.
   + rewrite /get_partners mem_fdom mem_filter /#.

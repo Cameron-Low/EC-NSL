@@ -902,35 +902,27 @@ with s = Accepted t _   => Some t.`2
 with s = Observed t _   => Some t.`2
 with s = Aborted    => None.
 
+op uniq_msg r s : ctxt option =
+with r = Initiator => fst_msg s
+with r = Responder => snd_msg s.
+
 op Game8_inv
   (sm: (id * int, role * instance_state) fmap)
   (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
   (skm : (trace, skey) fmap)
 =
-(* Unicity of pending initiators *)
-   (forall h h' c r b psk na m1 st',
-    sm.[h] = Some (r, IPending (b, psk, na, c) m1)
-    /\ sm.[h'] = Some (r, st')
-    /\ fst_msg st' = Some c
+(* Unicity of sessions *)
+   (forall c r h st h' st',
+    sm.[h] = Some (r, st) /\ sm.[h'] = Some (r, st')
+    /\ uniq_msg r st = Some c
+    /\ uniq_msg r st' = Some c
     => h = h')
 
-(* Unicity of pending responders *)
-/\ (forall h h' c1 c r b psk na nb m1 m2 st',
-    sm.[h] = Some (r, RPending (b, psk, na, nb, c1, c) m1 m2)
-    /\ sm.[h'] = Some (r, st')
-    /\ snd_msg st' = Some c
-    => h = h')
-
-(* Unicity of completed sessions with same trace and role *)
-/\ (forall t h h' r s s',
-    sm.[h] = Some (r, s) /\ sm.[h'] = Some (r, s')
-    /\ get_trace s = Some t /\ get_trace s' = Some t
-    => h = h' /\ s = s')
-
-(* Session state and log relationships *)
+(* Session state well-formedness and log relationship *)
 /\ (forall a i r b psk na c1 m1,
       sm.[a, i] = Some (r, IPending (b, psk, na, c1) m1)
-      => ((a, b), msg1_data a b, c1) \in dm /\ r = Initiator /\ m1 = (a, c1))
+      => ((a, b), msg1_data a b, c1) \in dm
+      /\ r = Initiator /\ m1 = (a, c1))
 
 /\ (forall a i r b psk na nb c1 c2 m1 m2,
       sm.[a, i] = Some (r, RPending (b, psk, na, nb, c1, c2) m1 m2)
@@ -957,9 +949,10 @@ proc.
 sp; wp; if=> //.
 seq 1 : (#pre); 1: by auto.
 auto => />.
-move => &m uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs sm psk bad.
+move => &m uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs sm psk bad.
 do! split; ~1:smt(get_setE).
-move => h h' c r b' psk' na' m1 st'.
+(* Fresh ciphertext implies not in log *)
+move => c r h st h' st'.
 rewrite !get_setE.
 case (h = (a, i){m}).
 + case (h' = (a, i){m}) => //.
@@ -979,13 +972,14 @@ proc.
 sp; wp; if=> //.
 sp; match => //.
 + auto=> />.
-  move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smnin pskin.
+  move => &m dm sm uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smnin pskin.
   do! split; smt(get_setE).
 seq 1 : (#pre); 1: by auto.
 auto => />.
-move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smnin pskin bad.
-do! split; ~2: smt(get_setE).
-move => h h' c1 c r b' psk' na' nb' m1' m2 st'.
+move => &m dm sm uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smnin pskin bad.
+do! split; ~1: smt(get_setE).
+(* Fresh ciphertext implies not in log *)
+move => c r h st h' st'.
 rewrite !get_setE.
 case (h = (b, j){m}).
 + case (h' = (b, j){m}) => //.
@@ -1006,16 +1000,23 @@ sp; wp; if=> //.
 sp; match => //.
 sp; match => //.
 + auto => />.
-  move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smin.
+  move => &m dm sm uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs smin.
   do! split; smt(get_setE).
 seq 1 : (#pre); 1: by auto.
 sp; if=> //.
 auto=> />.
-move => &m _ dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in /negb_or [_ uniq] nab _.
-do! split; ~6:smt(get_setE).
-move => v x r b' m1' m2' m3' sk.
+move => &m _ dm sm uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in /negb_or [_ uniq] nab _.
+do! split; ~1,5: smt(get_setE).
++ move => c r h st h' st'.
+  have := uniq_pi ca{m} Initiator (a, i){m}.
+  case (h = (a, i){m}) => />.
+  + smt(get_setE).
+  case (h' = (a, i){m}) => />.
+  + smt(get_setE).
+  smt(get_setE).
+move => a0 i0 r b' m1' m2' m3' sk.
 rewrite get_setE.
-by case ((v, x) = (a, i){m}); smt(get_setE).
+by case ((a0, i0) = (a, i){m}); smt(mem_set).
 qed.
 
 hoare Game8_inv_send_fin: Game8.send_fin:
@@ -1031,8 +1032,15 @@ sp; match => //.
   move => *.
   do! split; smt(get_setE).
 auto => />.
-move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in.
-do! split; ~6:smt(get_setE).
+move => &m dm sm uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in.
+do! split; ~1,4:smt(get_setE).
++ move => c r h st h' st'.
+  have := uniq_pi cb{m} Responder (b, j){m}.
+  case (h = (b, j){m}) => />.
+  + smt(get_setE).
+  case (h' = (b, j){m}) => />.
+  + smt(get_setE).
+  smt(get_setE).
 move => v x r b' m1' m2' m3' sk.
 rewrite get_setE.
 by case ((v, x) = (b, j){m}) => /#.
@@ -1049,13 +1057,13 @@ sp; match; 1,2,4,5: by auto.
 sp; if => //.
 rcondt ^if.
 + auto => />.
-  move => &m smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps k _.
+  move => &m sm uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps k _.
   case (trace{m} \in Game8.sk_map{m}) => // ^ tr_in_skm.
   move => /(sk_obs trace{m}) [a' i' r sk smai'].
-  have := uniq_comp trace{m} (a, i){m} (a', i') role{m} (Accepted trace{m} k'{m}) (Observed trace{m} sk).
-  have -> : Game8.state_map{m}.[a{m}, i{m}] = Some (role{m}, Accepted trace{m} k'{m}) by smt().
-  rewrite smai' some_oget //=.
-  case (r = role{m}) => //.
+  have smai : Game8.state_map{m}.[a{m}, i{m}] = Some (role{m}, Accepted trace{m} k'{m}) by smt().
+  case (r = role{m}).
+  + have := uniq_pi trace{m}.`1.`2 r (a, i){m} (Accepted trace k'){m} (a', i') (Observed trace{m} sk).
+    smt().
   move => neq_role.
   have bj_partner : (a', i') \in get_partners (Some trace{m}) role{m} Game8.state_map{m}.
   + rewrite /get_partners mem_fdom mem_filter /#.
@@ -1064,8 +1072,8 @@ rcondt ^if.
   rewrite fcard_eq0 in obs_ps.
   by rewrite obs_ps in_fset0.
 auto => />.
-move => &m smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps k _.
-do! split; ~7,8: smt(get_setE).
+move => &m smai uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps k _.
+do! split; ~5,6: smt(get_setE).
 + move => a0 i0 r b m1 m2 m3 sk.
   rewrite get_setE.
   by case ((a0, i0) = (a, i){m}) => /#.
@@ -1085,13 +1093,13 @@ sp; match; 1,2,4,5: by auto.
 sp; if => //.
 rcondt ^if.
 + auto => />.
-  move => &m smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps k _.
+  move => &m sm uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps k _.
   case (trace{m} \in Game8.sk_map{m}) => // ^ tr_in_skm.
   move => /(sk_obs trace{m}) [a' i' r sk smai'].
-  have := uniq_comp trace{m} (a, i){m} (a', i') role{m} (Accepted trace{m} k'{m}) (Observed trace{m} sk).
-  have -> : Game8.state_map{m}.[a{m}, i{m}] = Some (role{m}, Accepted trace{m} k'{m}) by smt().
-  rewrite smai' some_oget //=.
-  case (r = role{m}) => //.
+  have smai : Game8.state_map{m}.[a{m}, i{m}] = Some (role{m}, Accepted trace{m} k'{m}) by smt().
+  case (r = role{m}).
+  + have := uniq_pi trace{m}.`1.`2 r (a, i){m} (Accepted trace k'){m} (a', i') (Observed trace{m} sk).
+    smt().
   move => neq_role.
   have bj_partner : (a', i') \in get_partners (Some trace{m}) role{m} Game8.state_map{m}.
   + rewrite /get_partners mem_fdom mem_filter /#.
@@ -1104,8 +1112,8 @@ sp.
 seq 1 : #pre; 1: by auto => />.
 sp.
 auto => />.
-move => &m sm smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps _.
-do! split; ~7,8: smt(get_setE).
+move => &m sm smai uniq_pi ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps _.
+do! split; ~5,6: smt(get_setE).
 + move => a0 i0 r b m1 m2 m3 sk.
   rewrite get_setE.
   by case ((a0, i0) = (a, i){m}) => /#.
