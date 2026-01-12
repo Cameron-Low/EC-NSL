@@ -1012,7 +1012,10 @@ seq 1 : (#pre); 1: by auto.
 sp; if=> //.
 auto=> />.
 move => &m _ dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in /negb_or [_ uniq] nab _.
-do! split; smt(get_setE).
+do! split; ~6:smt(get_setE).
+move => v x r b' m1' m2' m3' sk.
+rewrite get_setE.
+by case ((v, x) = (a, i){m}); smt(get_setE).
 qed.
 
 hoare Game8_inv_send_fin: Game8.send_fin:
@@ -1025,15 +1028,14 @@ sp; wp ^if; if=> //.
 sp; match => //.
 sp; match => //.
 + auto=> />.
-  smt(get_setE).
+  move => *.
+  do! split; smt(get_setE).
 auto => />.
 move => &m dm sm uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in.
 do! split; ~6:smt(get_setE).
 move => v x r b' m1' m2' m3' sk.
 rewrite get_setE.
-case ((v, x) = (b, j){m}).
-+ smt().
-smt().
+by case ((v, x) = (b, j){m}) => /#.
 qed.
 
 hoare Game8_inv_reveal: Game8.reveal:
@@ -1063,7 +1065,13 @@ rcondt ^if.
   by rewrite obs_ps in_fset0.
 auto => />.
 move => &m smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps k _.
-do! split; smt(get_setE).
+do! split; ~7,8: smt(get_setE).
++ move => a0 i0 r b m1 m2 m3 sk.
+  rewrite get_setE.
+  by case ((a0, i0) = (a, i){m}) => /#.
+move => t.
+rewrite mem_set.
+case; smt(get_setE).
 qed.
 
 hoare Game8_inv_test: Game8.test:
@@ -1097,7 +1105,10 @@ seq 1 : #pre; 1: by auto => />.
 sp.
 auto => />.
 move => &m sm smai uniq_pi uniq_pr uniq_comp ss_log_ip ss_log_rp ss_log_acc ss_log_obs sk_obs ai_in obs_ps _.
-do! split; ~8: smt(get_setE).
+do! split; ~7,8: smt(get_setE).
++ move => a0 i0 r b m1 m2 m3 sk.
+  rewrite get_setE.
+  by case ((a0, i0) = (a, i){m}) => /#.
 move => t.
 rewrite mem_set.
 case; smt(get_setE).
