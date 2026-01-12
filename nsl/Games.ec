@@ -803,7 +803,17 @@ seq 1 : (#pre); 1: by auto.
 case (Game5.bad).
 + by rcondf ^if; auto=> />.
 auto=> />.
-smt(get_setE).
+move => &m *.
+do split; ~1: smt(get_setE).
+move => a0 i0 j c r r' b0 b' psk psk' na0 na' m1 m1'.
+rewrite !get_setE.
+case ((a0, i0) = (a, i){m}).
++ case ((a0, j) = (a, i){m}) => //.
+  smt(get_setE).
+case ((a0, j) = (a, i){m}) => //. 
++ move => />.
+  smt(get_setE).
+smt().
 qed.
 
 hoare Game5_inv_send_msg2: Game5.send_msg2:
