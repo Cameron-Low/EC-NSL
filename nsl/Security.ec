@@ -251,7 +251,7 @@ module (Red_ROM_sk (D : A_GAKE) : KROc.RO_Distinguisher) (R : KROc.RO) = {
 (* ------------------------------------------------------------------------------------------ *)
 section.
 
-declare module A <: A_GAKE {-GAKEb, -Game1, -Game2, -Game3, -Game4, -Game5, -Game6, -Game7, -Game8, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD, -Red_Coll_real, -Red_Coll_ideal, -Red_ROM, -Red_PRF, -NROc.RO, -NROc.FRO, -BD.Sample, -KROc.RO, -KROc.FRO, -Red_ROM_sk}.
+declare module A <: A_GAKE {-GAKEb, -Game1, -Game2, -Game3, -Game4, -Game4', -Game5, -Game6, -Game7, -Game8, -GAEAD0, -GAEAD1, -PRF0, -PRF1, -Red_AEAD, -Red_Coll_real, -Red_Coll_ideal, -Red_ROM, -Red_PRF, -NROc.RO, -NROc.FRO, -BD.Sample, -KROc.RO, -KROc.FRO, -Red_ROM_sk}.
 
 declare axiom A_ll:
 forall (GW <: GAKE_out{-A}),
@@ -1166,7 +1166,7 @@ local clone import DProd.ProdSampling with
   type t2 <- nonce
 proof *.
 
-lemma Step4 bit &m: Pr[E_GAKE(Game4, A).run(bit) @ &m : res] = Pr[E_GAKE(Game5, A).run(bit) @ &m : res].
+lemma Step4 bit &m: Pr[E_GAKE(Game4, A).run(bit) @ &m : res] = Pr[E_GAKE(Game4', A).run(bit) @ &m : res].
 byequiv => //.
 proc*.
 transitivity* {1} { r <@ NROc.MainD(Red_ROM(A), NROc.RO).distinguish(b); }.
@@ -1251,9 +1251,12 @@ transitivity* {1} { r <@ NROc.MainD(Red_ROM(A), NROc.RO).distinguish(b); }.
    smt(emptyE).
 
 rewrite equiv [{1} 1 (NROc.FullEager.RO_LRO (Red_ROM(A)) _)]; 1: by move=> _; exact dnonce_ll.
-inline*.
+inline.
 wp; call (:
-  ={b0, state_map, psk_map, bad, dec_map}(Red_ROM.WAKE_O, Game5)
+  ={b0, state_map, psk_map, bad, dec_map}(Red_ROM.WAKE_O, Game4')
+  /\ NROc.RO.m{1} = Game4'.nonce_map{2}
+
+  (*
   /\ (forall a b ca, (forall cb caf, (msg3_data a b ca cb, caf) \notin Game5.prfkey_map{2})
         => (msg1_data a b, ca) \notin NROc.RO.m{1})
   /\ (forall a b ca cb, (forall caf, (msg3_data a b ca cb, caf) \notin Game5.prfkey_map{2})
@@ -1263,9 +1266,61 @@ wp; call (:
                        NROc.RO.m{1}.[(msg1_data a b, ca)] = Some na /\
                        NROc.RO.m{1}.[(msg2_data a b ca, cb)] = Some nb)
   /\ (Game5_inv Game5.state_map Game5.dec_map Game5.prfkey_map){2}
+  *)
 ) => //.
 
 - by sim />.
+
+- proc; inline*.
+  sp; wp; if=> //.
+  auto=> />.
+  smt(mem_set).
+  
+- proc; inline*.
+  sp; wp; if=> //.
+  sp; match =; auto=> />.
+  smt(mem_set).
+
+- proc; inline*.
+  sp; wp; if=> //.
+  sp; match = => //.
+  + smt().
+  move=> s m1.
+  sp; match = => //.
+  + by auto.
+  move=> nb.
+  seq 1 1 : (#pre /\ ={caf}); 1: by auto.
+  sp; if=> //.
+  rcondt {1} ^if.
+  + auto=> />.
+    admit.
+  rcondt {1} ^if.
+  + auto=> />.
+    admit.
+  auto=> />.
+  smt(mem_set get_setE).
+
+- proc; inline*.
+  sp; wp ^if ^if; if=> //.
+  sp; match = => //.
+  + smt().
+  move=> s m1 m2.
+  sp; match = => //.
+  + by auto.
+  move=> nok.
+  rcondf {1} ^if.
+  + auto=> />.
+    smt().
+  rcondf {1} ^if.
+  + auto=> />.
+    smt().
+  by auto=> />.
+
+- by sim />.
+- by sim />.
+  auto => />.
+  smt(emptyE).
+  qed.
 
 - conseq (: ={res}
   /\ ={b0, state_map, psk_map, bad, dec_map}(Red_ROM.WAKE_O, Game5)
@@ -1328,7 +1383,7 @@ wp; call (:
   wp; rewrite equiv [{2} 3 sample_sample2].
   inline*.
   auto=> />.
-  move=> &1 &2 _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 invr5 /domE/some_oget sms /negb_or [_ cafnin] r _ r1 _.
+  move=> &1 &2 _ dm _ sm _ inv1 inv2 inv3 invr1 invr2 invr3 invr4 /domE/some_oget sms /negb_or [_ cafnin] r _ r1 _.
   rewrite get_set_sameE //=.
   smt(get_setE).
 

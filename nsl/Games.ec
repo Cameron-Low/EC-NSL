@@ -240,6 +240,50 @@ module Game4 = Game3 with {
   ]
 }.
 
+(* Decouple nonce storage entirely *)
+module Game4' = Game4 with {
+  var nonce_map : (msg_data * ctxt, nonce) fmap
+
+  proc init_mem [
+    -1 + { nonce_map <- empty; }
+  ]
+
+  proc send_msg1 [
+    ^if.^if.^na<$ -
+    ^if.^if.^dec_map<- ~ {
+      dec_map.[((a, b), msg1_data a b, ca)] <- witness;
+    }
+  ]
+
+  proc send_msg2 [
+    ^if.^match#Some.^if.^nb<$ -
+    ^if.^match#Some.^if.^dec_map<- ~ {
+      dec_map.[((a, b), msg2_data a b ca, cb)] <- witness;
+    }
+  ]
+
+  proc send_msg3 [
+    var nb' : nonce
+    ^if.^match#IPending.^match#Some.^if.^ok<$ -
+    ^if.^match#IPending.^match#Some.^if.^dec_map<- ~ {
+      dec_map.[((a, b), msg3_data a b ca m2, caf)] <- witness;
+    }
+    ^if.^match#IPending.^match#Some.^if.^skey<- ~ {
+      na <$ dnonce;
+      nb' <$ dnonce;
+      nonce_map.[msg1_data a b, ca] <- na;
+      nonce_map.[msg2_data a b ca, m2] <- nb';
+      skey <- prf (na, nb') (a, b);
+    }
+  ]
+
+  proc send_fin [
+    ^if.^match#RPending.^match#Some.^skey<- ~ {
+      skey <- prf (oget nonce_map.[msg1_data a b, ca], oget nonce_map.[msg2_data a b ca, cb]) (a, b);
+    }
+  ]
+}.
+
 (* Delay nonce sampling *)
 module Game5 = Game4 with {
   var prfkey_map : (msg_data * ctxt, nonce * nonce) fmap
@@ -763,6 +807,130 @@ if => //.
   smt(get_setE).
 auto => />.
 smt(get_setE).
+qed.
+
+(* ------------------------------------------------------------------------------------------ *)
+(* Game 4 invariants *)
+
+op Game4_inv
+  (sm: (id * int, role * instance_state) fmap)
+  (dm : ((id * id) * msg_data * ctxt, nonce) fmap)
+  (nm : (msg_data * ctxt, nonce) fmap)
+=
+  (* Unicity of pending initiators *)
+  (forall a i j c r r' b b' psk psk' na na' m1 m1',
+       sm.[(a, i)] = Some (r, IPending (b, psk, na, c) m1)
+    /\ sm.[(a, j)] = Some (r', IPending (b', psk', na', c) m1')
+    => i = j)
+
+  (* Pending initiator state relationships *)
+  /\ (forall a i r b psk na c1 m1,
+        sm.[a, i] = Some (r, IPending (b, psk, na, c1) m1)
+        => ((a, b), msg1_data a b, c1) \in dm
+        /\ forall c2 c3, ((a, b), msg3_data a b c1 c2, c3) \notin dm)
+
+  /\ (forall a b m1 m2 m3, ((a, b), msg3_data a b m1 m2, m3) \in dm
+      => (msg1_data a b, m1) \in nm /\ (msg2_data a b m1, m2) \in nm)
+
+  /\ (forall a b m1, (msg1_data a b, m1) \in nm
+      => exists m2 m3, ((a, b), msg3_data a b m1 m2, m3) \in dm)
+
+  /\ (forall a b m1 m2, (msg2_data a b m1, m2) \in nm
+      => exists m3, ((a, b), msg3_data a b m1 m2, m3) \in dm)
+
+  /\ (forall a b ca cb, ((a, b), msg2_data a b ca, cb) \in dm => ((a, b), msg1_data a b, ca) \in dm)
+
+  /\ (forall a b ca cb caf, ((a, b), msg3_data a b ca cb, caf) \in dm => ((a, b), msg2_data a b ca, cb) \in dm).
+
+hoare Game4_inv_send_msg1: Game4'.send_msg1:
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map)
+  ==>
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map).
+proof.
+proc.
+sp; wp; if=> //.
+seq 1 : (#pre); 1: by auto.
+case (Game4'.bad).
++ by rcondf ^if; auto=> />.
+auto=> />.
+move => &m *.
+do split; ~1: smt(get_setE).
+move => a0 i0 j c r r' b0 b' psk psk' na0 na' m1 m1'.
+rewrite !get_setE.
+case ((a0, i0) = (a, i){m}).
++ case ((a0, j) = (a, i){m}) => //.
+  smt(get_setE).
+case ((a0, j) = (a, i){m}) => //. 
++ move => />.
+  smt(get_setE).
+smt().
+qed.
+
+hoare Game4_inv_send_msg2: Game4'.send_msg2:
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map)
+  ==>
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map).
+proof.
+proc.
+sp; wp; if=> //.
+sp; match => //.
++ auto=> />.
+  smt(get_setE).
+seq 1 : (#pre); 1: by auto.
+auto=> />.
+smt(mem_set get_setE).
+qed.
+
+hoare Game4_inv_send_msg3: Game4'.send_msg3:
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map)
+  ==>
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map).
+proof.
+proc.
+sp; wp; if=> //.
+sp; match => //.
+sp; match => //.
++ auto=> />.
+  smt(get_setE).
+seq 1 : (#pre); 1: by auto.
+sp; if=> //.
+auto=> />.
+smt(mem_set get_setE).
+qed.
+
+hoare Game4_inv_send_fin: Game4'.send_fin:
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map)
+  ==>
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map).
+proof.
+proc.
+sp; wp ^if; if=> //.
+sp; match => //.
+sp; match; auto; smt(get_setE).
+qed.
+
+hoare Game4_inv_reveal: Game4'.reveal:
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map)
+  ==>
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map).
+proof.
+proc.
+sp; wp ^if; if => //.
+sp; match; 1,2,4,5: by auto.
+auto=> />.
+smt(get_setE).
+qed.
+
+hoare Game4_inv_test: Game4'.test:
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map)
+  ==>
+  (Game4_inv Game4'.state_map Game4'.dec_map Game4'.nonce_map).
+proof.
+proc.
+sp; wp ^if; if => //.
+sp; match; 1,2,4,5: by auto.
+sp; if => //.
+if; auto; smt(get_setE).
 qed.
 
 (* ------------------------------------------------------------------------------------------ *)
