@@ -100,9 +100,9 @@ module NSL : AKE_Scheme = {
     (b, psk, na, ca) <- s;
     nbo <- dec psk (msg2_data a b ca) cb;
     if (nbo is Some nb) {
-      skey <- prf (na, nb) (a, b);
       ok <$ dnonce;
       caf <$ enc psk (msg3_data a b ca cb) ok;
+      skey <- prf (na, nb) (a, b);
       r <- Some (caf, skey);
     }
 

@@ -1,5 +1,8 @@
 require import FMap.
 
+(********************************************************************************)
+(* PRF base type and operator definitions *)
+
 type handle, key, D, R, d_in_t.
 
 op dkey : key distr.
@@ -7,59 +10,62 @@ op dR : D -> R distr.
 
 op f : key -> D -> R.
 
-module type GPRF_out = {
+(********************************************************************************)
+(* PRF Oracle definitions *)
+
+module type PRF_Oracles = {
   proc gen(_: handle) : unit
   proc f(_: handle * D) : R option
 }.
 
-module type GPRF_out_i = {
+module type PRF_Oracles_i = {
+  include PRF_Oracles
   proc init_mem() : unit
-  include GPRF_out
 }.
 
-module PRFb = {
-  var prfkey_map : (handle, key) fmap
+module PRF_Oracles_common = {
+  var key_map : (handle, key) fmap
 
   proc gen(h) : unit = {
     var k;
 
-    if (h \notin prfkey_map) {
+    if (h \notin key_map) {
       k <$ dkey;
-      prfkey_map.[h] <- k;
+      key_map.[h] <- k;
     }
   }
 }.
 
-module PRF0 : GPRF_out_i = {
-  include var PRFb
+module PRF_Oracles_0 : PRF_Oracles_i = {
+  include var PRF_Oracles_common
 
   proc init_mem() = {
-    prfkey_map <- empty;
+    key_map <- empty;
   }
 
   proc f(h, x) = {
     var r <- None;
-    if (prfkey_map.[h] is Some k) {
+    if (key_map.[h] is Some k) {
       r <- Some (f k x);
     }
     return r;
   }
 }.
 
-module PRF1 : GPRF_out_i = {
-  include var PRFb
+module PRF_Oracles_1 : PRF_Oracles_i = {
+  include var PRF_Oracles_common
 
   var cache : (handle * D, R) fmap
 
   proc init_mem() = {
-    prfkey_map <- empty;
+    key_map <- empty;
     cache <- empty;
   }
 
   proc f(h, x) = {
     var y;
     var r <- None;
-    if (prfkey_map.[h] is Some k) {
+    if (key_map.[h] is Some k) {
       y <$ dR x;
       if ((h, x) \notin cache) {
         cache.[(h, x)] <- y;
@@ -72,16 +78,16 @@ module PRF1 : GPRF_out_i = {
 
 (********************************************************************************)
 (* Adversary and Experiment *)
-module type A_GPRF (GA : GPRF_out) = {
+
+module type PRF_Adversary (O : PRF_Oracles) = {
   proc run(_: d_in_t) : bool
 }.
 
-module E_GPRF (O : GPRF_out_i) (A : A_GPRF) = {
+module PRF_Game (O : PRF_Oracles_i) (A : PRF_Adversary) = {
   proc run(x) : bool = {
     var b : bool;
 
     O.init_mem();
-
     b <@ A(O).run(x);
 
     return b;

@@ -1,5 +1,8 @@
 require import Distr FMap.
 
+(********************************************************************************)
+(* AEAD base type and operator definitions *)
+
 type key, data, ctxt, ptxt.
 type handle.
 type d_in_t.
@@ -15,46 +18,49 @@ axiom correctness k ad p c:
 => c \in enc k ad p
 => dec k ad c = Some p.
 
-module type GAEAD_out = {
-  proc gen(h: handle) : unit
-  proc ex(h: handle) : bool
-  proc enc(h: handle, ad: data, p: ptxt) : ctxt option
-  proc dec(h: handle, ad: data, c: ctxt) : ptxt option
+(********************************************************************************)
+(* AEAD Oracle definitions *)
+
+module type AEAD_Oracles = {
+  proc gen(_: handle) : unit
+  proc ex(_: handle) : bool
+  proc enc(_: handle * data * ptxt) : ctxt option
+  proc dec(_: handle * data * ctxt) : ptxt option
 }.
 
-module type GAEAD_out_i = {
-  include GAEAD_out
+module type AEAD_Oracles_i = {
+  include AEAD_Oracles
   proc init_mem() : unit
 }.
 
-module GAEADb = {
-  var psk_map : (handle, key) fmap
+module AEAD_Oracles_common = {
+  var key_map : (handle, key) fmap
 
   proc gen(h: handle) : unit = {
     var k;
-    if (h \notin psk_map) {
+    if (h \notin key_map) {
       k <$ dkey;
-      psk_map.[h] <- k;
+      key_map.[h] <- k;
     }
   }
 
   proc ex(h: handle) : bool = {
-    return h \in psk_map;
+    return h \in key_map;
   }
 }.
 
-module GAEAD0 : GAEAD_out_i = {
-  include var GAEADb
+module AEAD_Oracles_0 : AEAD_Oracles_i = {
+  include var AEAD_Oracles_common
 
   proc init_mem() = {
-    psk_map <- empty;
+    key_map <- empty;
   }
 
   proc enc(h: handle, ad: data, p: ptxt) : ctxt option = {
     var c;
     var r <- None;
 
-    if (psk_map.[h] is Some k) {
+    if (key_map.[h] is Some k) {
       c <$ enc k ad p;
       r <- Some c;
     }
@@ -64,29 +70,29 @@ module GAEAD0 : GAEAD_out_i = {
   proc dec(h: handle, ad: data, c: ctxt) : ptxt option = {
     var p <- None;
 
-    if (psk_map.[h] is Some k) {
+    if (key_map.[h] is Some k) {
       p <- dec k ad c;
     }
     return p;
   }
 }.
 
-module GAEAD1 : GAEAD_out_i = {
-  include var GAEADb
-  var ctxts : (handle * data * ctxt, ptxt) fmap
+module AEAD_Oracles_1 : AEAD_Oracles_i = {
+  include var AEAD_Oracles_common
+  var dec_map : (handle * data * ctxt, ptxt) fmap
 
   proc init_mem() = {
-    psk_map <- empty;
-    ctxts <- empty;
+    key_map <- empty;
+    dec_map <- empty;
   }
 
   proc enc(h: handle, ad: data, p : ptxt) : ctxt option = {
     var c;
     var r <- None;
 
-    if (h \in psk_map) {
+    if (h \in key_map) {
       c <$ dctxt;
-      ctxts.[(h, ad, c)] <- p;
+      dec_map.[h, ad, c] <- p;
       r <- Some c;
     }
     return r;
@@ -95,8 +101,8 @@ module GAEAD1 : GAEAD_out_i = {
   proc dec(h: handle, ad: data, c: ctxt) : ptxt option = {
     var p <- None;
 
-    if (h \in psk_map) {
-      p <- ctxts.[h, ad, c];
+    if (h \in key_map) {
+      p <- dec_map.[h, ad, c];
     }
     return p;
   }
@@ -104,17 +110,16 @@ module GAEAD1 : GAEAD_out_i = {
 
 
 (********************************************************************************)
-(* Adversary and Experiment *)
-module type A_GAEAD (GA : GAEAD_out) = {
+(* Adversary and Game *)
+module type AEAD_Adversary (O : AEAD_Oracles) = {
   proc run(_: d_in_t) : bool
 }.
 
-module E_GAEAD (O : GAEAD_out_i) (A : A_GAEAD) = {
+module AEAD_Game (O : AEAD_Oracles_i) (A : AEAD_Adversary) = {
   proc run(x : d_in_t) : bool = {
     var b : bool;
 
     O.init_mem();
-
     b <@ A(O).run(x);
 
     return b;
