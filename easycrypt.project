@@ -3,4 +3,4 @@ provers = Alt-Ergo@2.6
 provers = CVC5@1.0
 provers = Z3@4.13
 
-rdirs = nsl
+rdirs = kap1

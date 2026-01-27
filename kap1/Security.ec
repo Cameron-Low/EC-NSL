@@ -1,5 +1,5 @@
-require import AllCore FSet FMap List Distr DProd PROM NSL Games.
-import GAKEc AEADc PRFc.
+require import AllCore FSet FMap List Distr DProd PROM KAP1 Games.
+import AKEc AEADc PRFc.
 require Birthday.
 
 (* ------------------------------------------------------------------------------------------ *)
@@ -283,7 +283,7 @@ declare axiom A_bounded_qs:
 (* Hop 1: AKE Game to Game 1 - Inline procedure calls *) 
   
 lemma Hop1 bit &m:
-    Pr[AKE_Game(AKE_Oracles(NSL), A).run(bit) @ &m : res] = Pr[AKE_Game(Game1, A).run(bit) @ &m : res].
+    Pr[AKE_Game(AKE_Oracles(KAP1), A).run(bit) @ &m : res] = Pr[AKE_Game(Game1, A).run(bit) @ &m : res].
 proof.
 byequiv => //.
 proc; inline.
@@ -2140,7 +2140,7 @@ call (: ={state_map, psk_map, dec_map, bad, prfkey_map}(Game5c, Game5c)
 by auto => />.
 qed.
 
-lemma final &m: `| Pr[AKE_Game(AKE_Oracles(NSL), A).run(false) @ &m : res] - Pr[AKE_Game(AKE_Oracles(NSL), A).run(true) @ &m : res]|
+lemma final &m: `| Pr[AKE_Game(AKE_Oracles(KAP1), A).run(false) @ &m : res] - Pr[AKE_Game(AKE_Oracles(KAP1), A).run(true) @ &m : res]|
   <= `|Pr[AEAD_Game(AEAD_Oracles_0, AEAD_Reduction(A)).run(false) @ &m : res] - Pr[AEAD_Game(AEAD_Oracles_1, AEAD_Reduction(A)).run(false) @ &m : res]|
       + `|Pr[AEAD_Game(AEAD_Oracles_0, AEAD_Reduction(A)).run(true) @ &m : res] - Pr[AEAD_Game(AEAD_Oracles_1, AEAD_Reduction(A)).run(true) @ &m : res]|
       + `|Pr[PRF_Game(PRF_Oracles_0, PRF_Reduction(A)).run(false) @ &m : res] - Pr[PRF_Game(PRF_Oracles_1, PRF_Reduction(A)).run(false) @ &m : res]|

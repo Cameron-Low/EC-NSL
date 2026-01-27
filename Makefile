@@ -3,7 +3,7 @@
 # --------------------------------------------------------------------
 ECJOBS   ?= 2
 ECCONF   := config/tests.config
-CHECKS   ?= nsl
+CHECKS   ?= kap1
 
 ECCHECK := easycrypt runtest
 

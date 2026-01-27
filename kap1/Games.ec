@@ -1,5 +1,5 @@
-require import AllCore FMap FSet Distr NSL List.
-import GAKEc AEADc.
+require import AllCore FMap FSet Distr KAP1 List.
+import AKEc AEADc.
 
 (* ------------------------------------------------------------------------------------------ *)
 (* Intermediate Games *)

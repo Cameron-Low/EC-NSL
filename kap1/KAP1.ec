@@ -1,5 +1,5 @@
 require import AllCore Distr FSet FMap.
-require GAKE Aead PRF.
+require AKE Aead PRF.
 
 type id, pskey, skey, nonce, ctxt.
 type ids = id * id.
@@ -31,7 +31,7 @@ type rstate = id * pskey * nonce * nonce * ctxt * ctxt.
 
 axiom correctness k ad p c: k \in dpskey => c \in enc k ad p => dec k ad c = Some p.
 
-clone import GAKE as GAKEc with
+clone import AKE as AKEc with
   type id <- id,
   type msg <- ctxt,
   type key <- skey,
@@ -71,7 +71,7 @@ proof *.
   The protocol doesn't handle any state itself (it is state-passing).
   Instead it relies on the game to handle it.
 *)
-module NSL : AKE_Scheme = {
+module KAP1 : AKE_Scheme = {
   proc msg1(a : id, b : id, psk : pskey) : (id * ctxt) * istate = {
     var na, ca;
     na <$ dnonce;
