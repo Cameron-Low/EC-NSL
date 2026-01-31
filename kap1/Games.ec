@@ -802,9 +802,7 @@ op Game3d_inv
   /\ (forall a b m1 m2, (msg2_data a b m1, m2) \in nm
       => exists m3, (msg3_data a b m1 m2, m3) \in dm)
 
-  /\ (forall a b ca cb, (msg2_data a b ca, cb) \in dm => (msg1_data a b, ca) \in dm)
-
-  /\ (forall a b ca cb caf, (msg3_data a b ca cb, caf) \in dm => (msg2_data a b ca, cb) \in dm).
+  /\ (forall a b ca cb caf, (msg3_data a b ca cb, caf) \in dm => (msg1_data a b, ca) \in dm).
 
 hoare Game3d_inv_send_msg1: Game3d.send_msg1:
   (Game3d_inv Game3d.state_map Game3d.dec_map Game3d.nonce_map)
